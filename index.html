@@ -34,6 +34,22 @@
       -webkit-tap-highlight-color: transparent;
       padding-bottom: env(safe-area-inset-bottom);
     }
+    body.modal-open {
+      overflow: hidden !important;
+      height: 100vh !important;
+      touch-action: none !important;
+      -webkit-overflow-scrolling: auto !important;
+    }
+    header {
+      padding-top: calc(0.75rem + env(safe-area-inset-top, 0px)) !important;
+      padding-left: max(1rem, env(safe-area-inset-left, 0px)) !important;
+      padding-right: max(1rem, env(safe-area-inset-right, 0px)) !important;
+    }
+    .custom-scroll {
+      overscroll-behavior: contain !important;
+      -webkit-overflow-scrolling: touch !important;
+      touch-action: pan-y;
+    }
     .custom-scroll::-webkit-scrollbar {
       width: 4px;
     }
@@ -43,6 +59,7 @@
     }
     .bottom-sheet {
       transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+      overscroll-behavior: contain !important;
     }
     .bottom-sheet.closed {
       transform: translateY(105%);
@@ -138,10 +155,15 @@
     <!-- Активный список задач -->
     <section class="space-y-4">
       <div class="flex items-center justify-between pt-2">
-        <h2 id="active-category-title" class="text-sm font-bold text-slate-200 flex items-center gap-2">
-          <span>Все задачи</span>
-        </h2>
-        <span id="category-task-count" class="text-xs text-slate-400 bg-card px-2 py-0.5 rounded border border-border">20</span>
+        <div class="flex items-center gap-2">
+          <h2 id="active-category-title" class="text-sm font-bold text-slate-200 flex items-center gap-2">
+            <span>Все задачи</span>
+          </h2>
+          <span id="category-task-count" class="text-xs text-slate-400 bg-card px-2 py-0.5 rounded border border-border">20</span>
+        </div>
+        <button id="add-task-in-cat-btn" onclick="openNewTaskForCurrentCat()" class="text-xs bg-blue-600/20 hover:bg-blue-600/30 active:scale-95 text-blue-400 border border-blue-500/30 px-3 py-1.5 rounded-xl font-semibold flex items-center gap-1.5 transition-all">
+          <span>+</span> <span>Добавить задачу</span>
+        </button>
       </div>
 
       <!-- Контейнер задач с вертикальными линиями подкатегорий -->
@@ -208,7 +230,24 @@
 
       <!-- Дедлайн -->
       <div>
-        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Срок / Дедлайн ⏳ (опционально)</label>
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Срок / Дедлайн ⏳ (опционально)</label>
+          <button type="button" onclick="triggerNativeDatePicker()" class="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1 font-medium select-none">
+            <span>🗓️</span> <span>Выбрать в календаре</span>
+          </button>
+        </div>
+
+        <!-- Скрытый нативный input type date для вызова iOS календаря -->
+        <input id="new-task-date-picker" type="date" class="hidden" onchange="onNativeDatePicked(this.value)">
+
+        <!-- Быстрые чипсы сроков -->
+        <div class="flex flex-wrap gap-1.5 mb-2">
+          <button type="button" onclick="setQuickDeadline('today')" class="text-[11px] bg-slate-800 hover:bg-slate-700 active:bg-blue-600 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-lg transition-all">⚡ Сегодня</button>
+          <button type="button" onclick="setQuickDeadline('tomorrow')" class="text-[11px] bg-slate-800 hover:bg-slate-700 active:bg-blue-600 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-lg transition-all">📅 Завтра</button>
+          <button type="button" onclick="setQuickDeadline('weekend')" class="text-[11px] bg-slate-800 hover:bg-slate-700 active:bg-blue-600 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-lg transition-all">🎯 До конца недели</button>
+          <button type="button" onclick="clearDeadline()" class="text-[11px] bg-transparent hover:bg-slate-800 text-slate-500 hover:text-slate-300 border border-transparent px-1.5 py-1 rounded-lg transition-all">Очистить</button>
+        </div>
+
         <input id="new-task-deadline" type="text" placeholder="Например: до 25 сентября или 01.10 в 14:00" class="w-full bg-[#090d16]/80 border border-border rounded-xl p-3 text-slate-100 placeholder:text-slate-500 text-xs focus:outline-none focus:border-blue-500 transition-all">
       </div>
 
@@ -218,11 +257,22 @@
         <textarea id="new-task-desc" rows="2" placeholder="Дополнительные детали, ссылки, артикулы запчастей..." class="w-full bg-[#090d16]/80 border border-border rounded-xl p-3 text-slate-100 placeholder:text-slate-500 text-xs focus:outline-none focus:border-blue-500 transition-all"></textarea>
       </div>
 
-      <!-- Микрошаги чеклиста -->
+      <!-- Микрошаги чеклиста (построчный список) -->
       <div>
-        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Микрошаги чеклиста (по одному на строку)</label>
-        <textarea id="new-task-steps" rows="3" placeholder="Шаг 1: Найти запчасть&#10;Шаг 2: Оформить самовывоз&#10;Шаг 3: Поставить в гараже" class="w-full bg-[#090d16]/80 border border-border rounded-xl p-3 text-slate-100 placeholder:text-slate-500 text-xs focus:outline-none focus:border-blue-500 transition-all font-mono"></textarea>
-        <p class="text-[11px] text-slate-500 mt-1">Каждая новая строка станет отдельным кликабельным шагом с галочкой.</p>
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Микрошаги чеклиста (опционально)</label>
+          <button type="button" onclick="addNewStepInput()" class="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1 font-semibold select-none">
+            <span>+</span> <span>Добавить шаг</span>
+          </button>
+        </div>
+        
+        <div id="new-task-steps-list" class="space-y-2">
+          <!-- Генерируется из JS -->
+        </div>
+
+        <button type="button" onclick="addNewStepInput()" class="w-full mt-2 py-2.5 border border-dashed border-slate-700/80 hover:border-blue-500/60 rounded-xl text-xs text-slate-400 hover:text-blue-400 flex items-center justify-center gap-1.5 bg-card/20 transition-all select-none">
+          <span>+</span> <span>Добавить еще один шаг</span>
+        </button>
       </div>
     </div>
 
@@ -230,6 +280,49 @@
     <div class="p-4 border-t border-border/50 bg-[#090d16]/70 flex items-center justify-between gap-3">
       <button onclick="createNewTask()" class="flex-1 py-3.5 px-4 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2">
         <span>✓ Сохранить задачу</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Шторка создания нового раздела (New Category Drawer) -->
+  <div id="new-cat-overlay" class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200"></div>
+
+  <div id="new-cat-sheet" class="bottom-sheet closed fixed bottom-0 left-0 right-0 z-50 max-w-lg mx-auto bg-[#131b2e] border-t border-border rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col">
+    <!-- Ручка свайпа -->
+    <div class="w-full flex justify-center py-2.5 cursor-pointer" onclick="closeAddCategoryDrawer()">
+      <div class="w-10 h-1 bg-slate-600/70 rounded-full"></div>
+    </div>
+
+    <!-- Шапка шторки -->
+    <div class="px-6 pb-3 pt-1 border-b border-border/50 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">📁</span>
+        <h3 class="text-base sm:text-lg font-bold text-white">Новый раздел</h3>
+      </div>
+      <button onclick="closeAddCategoryDrawer()" class="text-slate-400 hover:text-white p-1.5 rounded-lg bg-slate-800/50">
+        ✕
+      </button>
+    </div>
+
+    <!-- Поля ввода -->
+    <div class="px-6 py-4 overflow-y-auto custom-scroll space-y-4 flex-1 text-sm">
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Название раздела *</label>
+        <input id="new-cat-name" type="text" placeholder="Например: Здоровье, Хобби, Гараж..." class="w-full bg-[#090d16]/80 border border-border rounded-xl p-3.5 text-slate-100 placeholder:text-slate-500 text-sm focus:outline-none focus:border-blue-500 transition-all">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Выберите значок / иконку</label>
+        <div id="new-cat-emoji-picker" class="grid grid-cols-6 gap-2 pt-1">
+          <!-- Генерируется из JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Кнопка сохранения -->
+    <div class="p-4 border-t border-border/50 bg-[#090d16]/70 flex items-center justify-between gap-3">
+      <button onclick="createNewCategory()" class="flex-1 py-3.5 px-4 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2">
+        <span>✓ Создать раздел</span>
       </button>
     </div>
   </div>
@@ -637,6 +730,29 @@
   }
 ];
     /* END_INITIAL_TASKS */
+
+    const DEFAULT_CATEGORIES = [
+      { id: 'work', name: 'Работа', emoji: '💼' },
+      { id: 'prime', name: 'Prime Lead', emoji: '🤝' },
+      { id: 'home', name: 'Дом', emoji: '🏠' },
+      { id: 'dacha', name: 'Дача', emoji: '🏡' },
+      { id: 'dog', name: 'Собака', emoji: '🐕' },
+      { id: 'cars', name: 'Машины', emoji: '🚗' },
+      { id: 'personal', name: 'Личное', emoji: '👤' }
+    ];
+
+    let customCategories = [];
+    try {
+      const savedCats = localStorage.getItem('vladimir_custom_categories_v1');
+      if (savedCats) customCategories = JSON.parse(savedCats);
+    } catch(e) {
+      customCategories = [];
+    }
+
+    function getAllCategories() {
+      return [...DEFAULT_CATEGORIES, ...customCategories];
+    }
+
     let tasks = JSON.parse(JSON.stringify(INITIAL_TASKS));
     let checkedSteps = {}; // { taskId: [0, 2] }
     let activeFilter = 'all';
@@ -666,8 +782,9 @@
     function renderCategories() {
       const grid = document.getElementById('categories-grid');
       grid.innerHTML = '';
+      const allCats = getAllCategories();
 
-      CATEGORIES.forEach(cat => {
+      allCats.forEach(cat => {
         const catTasks = tasks.filter(t => t.cat === cat.id);
         const total = catTasks.length;
         const withDeadline = catTasks.filter(t => t.deadline && !t.done).length;
@@ -694,6 +811,18 @@
         grid.appendChild(card);
       });
 
+      // Кнопка-плитка '+ Новый раздел'
+      const addCatCard = document.createElement('div');
+      addCatCard.className = 'p-3.5 rounded-2xl border border-dashed border-slate-700/80 bg-card/30 hover:bg-cardHover hover:border-blue-500/60 active:scale-95 transition-all cursor-pointer flex flex-col items-center justify-center text-center select-none min-h-[96px] group';
+      addCatCard.onclick = openAddCategoryDrawer;
+      addCatCard.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-blue-600/20 group-hover:bg-blue-600/30 text-blue-400 flex items-center justify-center text-xl font-bold transition-all">
+          +
+        </div>
+        <div class="font-semibold text-slate-400 group-hover:text-slate-200 text-xs mt-2">Новый раздел</div>
+      `;
+      grid.appendChild(addCatCard);
+
       const totalCount = tasks.length;
       const deadlinesCount = tasks.filter(t => t.deadline && !t.done).length;
       document.getElementById('total-stat').textContent = `${totalCount} задач · ${deadlinesCount} со сроком`;
@@ -719,15 +848,24 @@
       container.innerHTML = '';
 
       let filtered = activeFilter === 'all' ? tasks : tasks.filter(t => t.cat === activeFilter);
-      
-      const catObj = CATEGORIES.find(c => c.id === activeFilter);
+      const allCats = getAllCategories();
+      const catObj = allCats.find(c => c.id === activeFilter);
+
       document.getElementById('active-category-title').innerHTML = activeFilter === 'all' 
         ? '<span>Все задачи</span>' 
-        : `<span>${catObj.emoji} ${catObj.name}</span>`;
+        : `<span>${catObj ? catObj.emoji + ' ' + catObj.name : 'Раздел'}</span>`;
       document.getElementById('category-task-count').textContent = filtered.length;
 
       if (filtered.length === 0) {
-        container.innerHTML = `<div class="p-8 text-center text-slate-500 text-sm">В этом разделе пока нет активных задач</div>`;
+        container.innerHTML = `
+          <div class="p-8 text-center bg-card/30 rounded-2xl border border-dashed border-slate-700/60 space-y-3">
+            <div class="text-3xl">📝</div>
+            <div class="text-slate-300 font-medium text-sm">В этом разделе пока нет задач</div>
+            <button onclick="openNewTaskForCurrentCat()" class="text-xs bg-blue-600 hover:bg-blue-500 active:scale-95 text-white px-4 py-2.5 rounded-xl font-semibold transition-all shadow-md shadow-blue-600/30">
+              + Создать первую задачу
+            </button>
+          </div>
+        `;
         return;
       }
 
@@ -804,7 +942,6 @@
       const task = tasks.find(t => t.id === taskId);
       if (task) {
         task.done = !task.done;
-        // Если задачу закрыли вручную — проставляем все шаги в чеклисте
         if (task.done && task.checklist && task.checklist.length > 0) {
           checkedSteps[taskId] = task.checklist.map((_, i) => i);
           saveStepsState();
@@ -819,18 +956,18 @@
       }
     }
 
-    // Открытие шторки задачи
+    // Открытие шторки задачи с блокировкой скролла фона
     function openDrawer(taskId) {
       const task = tasks.find(t => t.id === taskId);
       if (!task) return;
 
       currentModalTaskId = taskId;
-      const cat = CATEGORIES.find(c => c.id === task.cat);
+      const allCats = getAllCategories();
+      const cat = allCats.find(c => c.id === task.cat) || { name: 'Раздел', emoji: '📁' };
 
       document.getElementById('modal-category').textContent = `${cat.emoji} ${cat.name}${task.sub ? ' · ' + task.sub : ''}`;
       document.getElementById('modal-title').textContent = task.title;
       
-      // Описание
       const descEl = document.getElementById('modal-desc');
       if (task.desc && task.desc.trim()) {
         descEl.textContent = task.desc;
@@ -839,7 +976,6 @@
         document.getElementById('modal-desc-wrapper').classList.add('hidden');
       }
 
-      // Дедлайн
       const deadlineBox = document.getElementById('modal-deadline-box');
       if (task.deadline && !task.done) {
         deadlineBox.classList.remove('hidden');
@@ -848,18 +984,14 @@
         deadlineBox.classList.add('hidden');
       }
 
-      // Рендер пошагового чеклиста
       renderModalChecklist(task);
-
-      // Кнопка статуса
       updateModalBtnState(task.done);
 
-      // Показ шторки
+      document.body.classList.add('modal-open');
       document.getElementById('modal-overlay').classList.remove('opacity-0', 'pointer-events-none');
       document.getElementById('bottom-sheet').classList.remove('closed');
     }
 
-    // Рендер и интерактивность пошагового чеклиста
     function renderModalChecklist(task) {
       const wrapper = document.getElementById('modal-checklist-wrapper');
       const container = document.getElementById('modal-checklist');
@@ -932,12 +1064,10 @@
         const total = (task.checklist || []).length;
         const doneCount = checkedSteps[taskId].length;
 
-        // Автозавершение: при 100% шагов автоматом завершаем задачу
         if (total > 0 && doneCount === total && !task.done) {
           task.done = true;
           saveTasksState();
         } else if (total > 0 && doneCount < total && task.done) {
-          // Если сняли шаг с выполненной задачи — возвращаем её в работу
           task.done = false;
           saveTasksState();
         }
@@ -969,6 +1099,7 @@
     }
 
     function closeDrawer() {
+      document.body.classList.remove('modal-open');
       document.getElementById('modal-overlay').classList.add('opacity-0', 'pointer-events-none');
       document.getElementById('bottom-sheet').classList.add('closed');
       currentModalTaskId = null;
@@ -976,7 +1107,79 @@
 
     document.getElementById('modal-overlay').onclick = closeDrawer;
 
-    
+    // Логика создания новых разделов
+    const EMOJI_OPTIONS = ['🎯', '💡', '🛠️', '💊', '📚', '💰', '⚡', '✈️', '🎮', '📦', '🏋️', '🛒', '🚗', '🐶', '🏠', '🔥', '⚙️', '🍕'];
+    let selectedCatEmoji = '🎯';
+
+    function renderCatEmojiPicker() {
+      const picker = document.getElementById('new-cat-emoji-picker');
+      if (!picker) return;
+      picker.innerHTML = '';
+      EMOJI_OPTIONS.forEach(emoji => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `h-11 rounded-xl text-xl flex items-center justify-center border transition-all ${
+          selectedCatEmoji === emoji 
+            ? 'bg-blue-600/30 border-blue-400 text-white shadow-md shadow-blue-500/20' 
+            : 'bg-[#090d16]/80 border-border text-slate-300 hover:border-slate-500'
+        }`;
+        btn.textContent = emoji;
+        btn.onclick = () => {
+          selectedCatEmoji = emoji;
+          renderCatEmojiPicker();
+        };
+        picker.appendChild(btn);
+      });
+    }
+
+    function openAddCategoryDrawer() {
+      renderCatEmojiPicker();
+      document.body.classList.add('modal-open');
+      document.getElementById('new-cat-overlay').classList.remove('opacity-0', 'pointer-events-none');
+      document.getElementById('new-cat-sheet').classList.remove('closed');
+      setTimeout(() => {
+        const input = document.getElementById('new-cat-name');
+        if (input) input.focus();
+      }, 150);
+    }
+
+    function closeAddCategoryDrawer() {
+      document.body.classList.remove('modal-open');
+      document.getElementById('new-cat-overlay').classList.add('opacity-0', 'pointer-events-none');
+      document.getElementById('new-cat-sheet').classList.add('closed');
+      const input = document.getElementById('new-cat-name');
+      if (input) input.value = '';
+    }
+
+    document.getElementById('new-cat-overlay').onclick = closeAddCategoryDrawer;
+
+    function createNewCategory() {
+      const nameInput = document.getElementById('new-cat-name');
+      const name = nameInput.value.trim();
+      if (!name) {
+        showToast('Введите название раздела!', '⚠️');
+        nameInput.focus();
+        return;
+      }
+
+      const id = 'cat_' + Date.now();
+      const newCat = {
+        id: id,
+        name: name,
+        emoji: selectedCatEmoji || '📁'
+      };
+
+      customCategories.push(newCat);
+      try {
+        localStorage.setItem('vladimir_custom_categories_v1', JSON.stringify(customCategories));
+      } catch(e) {}
+
+      closeAddCategoryDrawer();
+      renderCategories();
+      filterByCategory(id);
+      showToast(`Раздел «${name}» создан!`, '📁');
+    }
+
     // Логика создания новых задач
     let selectedNewTaskCat = 'work';
     const SUB_PRESETS = {
@@ -990,8 +1193,9 @@
       const container = document.getElementById('new-task-cat-chips');
       if (!container) return;
       container.innerHTML = '';
+      const allCats = getAllCategories();
 
-      CATEGORIES.forEach(cat => {
+      allCats.forEach(cat => {
         const isSelected = selectedNewTaskCat === cat.id;
         const chip = document.createElement('div');
         chip.className = `p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all flex items-center gap-2 select-none ${
@@ -1003,6 +1207,16 @@
         chip.innerHTML = `<span>${cat.emoji}</span> <span class="truncate">${cat.name}</span>`;
         container.appendChild(chip);
       });
+
+      // Чипс быстрого создания нового раздела
+      const addChip = document.createElement('div');
+      addChip.className = 'p-2.5 rounded-xl border border-dashed border-slate-700 hover:border-blue-500/60 bg-[#090d16]/40 text-xs font-semibold cursor-pointer transition-all flex items-center gap-2 text-slate-400 hover:text-blue-300 select-none';
+      addChip.onclick = () => {
+        closeNewTaskDrawer();
+        setTimeout(openAddCategoryDrawer, 200);
+      };
+      addChip.innerHTML = `<span>+</span> <span>Новый раздел</span>`;
+      container.appendChild(addChip);
 
       renderSubPresets();
     }
@@ -1036,13 +1250,22 @@
       });
     }
 
-    function openNewTaskDrawer() {
-      // Предвыбираем активную категорию или работу
-      if (activeFilter !== 'all') {
+    // Добавление задачи прямо из активного раздела
+    function openNewTaskForCurrentCat() {
+      const preferred = activeFilter !== 'all' ? activeFilter : 'work';
+      openNewTaskDrawer(preferred);
+    }
+
+    function openNewTaskDrawer(preferredCat = null) {
+      if (preferredCat) {
+        selectedNewTaskCat = preferredCat;
+      } else if (activeFilter !== 'all') {
         selectedNewTaskCat = activeFilter;
       }
       renderNewTaskCatChips();
-      
+      resetStepInputs();
+
+      document.body.classList.add('modal-open');
       document.getElementById('new-task-overlay').classList.remove('opacity-0', 'pointer-events-none');
       document.getElementById('new-task-sheet').classList.remove('closed');
       
@@ -1053,18 +1276,123 @@
     }
 
     function closeNewTaskDrawer() {
+      document.body.classList.remove('modal-open');
       document.getElementById('new-task-overlay').classList.add('opacity-0', 'pointer-events-none');
       document.getElementById('new-task-sheet').classList.add('closed');
       
-      // Сброс полей
       document.getElementById('new-task-title').value = '';
       document.getElementById('new-task-sub').value = '';
       document.getElementById('new-task-deadline').value = '';
       document.getElementById('new-task-desc').value = '';
-      document.getElementById('new-task-steps').value = '';
+      const stepsContainer = document.getElementById('new-task-steps-list');
+      if (stepsContainer) stepsContainer.innerHTML = '';
     }
 
     document.getElementById('new-task-overlay').onclick = closeNewTaskDrawer;
+
+    // Интерактивный список шагов чеклиста
+    function resetStepInputs() {
+      const container = document.getElementById('new-task-steps-list');
+      if (!container) return;
+      container.innerHTML = '';
+      addNewStepInput('Шаг 1: Найти запчасть / инфу...');
+      addNewStepInput('Шаг 2: Оформить самовывоз или доставку...');
+    }
+
+    function addNewStepInput(customPlaceholder = null) {
+      const container = document.getElementById('new-task-steps-list');
+      if (!container) return;
+      const currentCount = container.querySelectorAll('.step-input-row').length + 1;
+      const placeholder = customPlaceholder || `Шаг ${currentCount}...`;
+
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-2 step-input-row';
+      row.innerHTML = `
+        <span class="text-slate-500 text-xs font-mono select-none">⚪</span>
+        <input type="text" class="flex-1 bg-[#090d16]/80 border border-border rounded-xl p-2.5 text-slate-100 placeholder:text-slate-500 text-xs focus:outline-none focus:border-blue-500 transition-all step-text-input" placeholder="${placeholder}" onkeydown="handleStepKeyDown(event, this)">
+        <button type="button" onclick="removeStepRow(this)" class="text-slate-500 hover:text-rose-400 p-1.5 text-sm transition-colors select-none" title="Удалить шаг">✕</button>
+      `;
+      container.appendChild(row);
+
+      if (!customPlaceholder) {
+        const inp = row.querySelector('.step-text-input');
+        if (inp) inp.focus();
+      }
+    }
+
+    function removeStepRow(btn) {
+      const row = btn.closest('.step-input-row');
+      if (row) {
+        const container = document.getElementById('new-task-steps-list');
+        row.remove();
+        if (container) {
+          container.querySelectorAll('.step-input-row').forEach((r, idx) => {
+            const inp = r.querySelector('.step-text-input');
+            if (inp && (!inp.value || inp.placeholder.startsWith('Шаг '))) {
+              inp.placeholder = `Шаг ${idx + 1}...`;
+            }
+          });
+        }
+      }
+    }
+
+    function handleStepKeyDown(e, input) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addNewStepInput();
+      }
+    }
+
+    // Календарь и чипсы дедлайна
+    function triggerNativeDatePicker() {
+      const picker = document.getElementById('new-task-date-picker');
+      if (picker) {
+        if (typeof picker.showPicker === 'function') {
+          picker.showPicker();
+        } else {
+          picker.click();
+        }
+      }
+    }
+
+    function onNativeDatePicked(val) {
+      if (!val) return;
+      const parts = val.split('-');
+      if (parts.length === 3) {
+        const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+        const d = parseInt(parts[2], 10);
+        const m = months[parseInt(parts[1], 10) - 1];
+        const y = parts[0];
+        document.getElementById('new-task-deadline').value = `до ${d} ${m} ${y}`;
+      }
+    }
+
+    function setQuickDeadline(type) {
+      const now = new Date();
+      const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+      
+      if (type === 'today') {
+        const d = now.getDate();
+        const m = months[now.getMonth()];
+        document.getElementById('new-task-deadline').value = `Сегодня (${d} ${m})`;
+      } else if (type === 'tomorrow') {
+        const next = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        const d = next.getDate();
+        const m = months[next.getMonth()];
+        document.getElementById('new-task-deadline').value = `Завтра (${d} ${m})`;
+      } else if (type === 'weekend') {
+        const day = now.getDay();
+        const diff = (7 - day) % 7 || 7;
+        const sunday = new Date(now.getTime() + diff * 24 * 60 * 60 * 1000);
+        const d = sunday.getDate();
+        const m = months[sunday.getMonth()];
+        document.getElementById('new-task-deadline').value = `До конца недели (${d} ${m})`;
+      }
+    }
+
+    function clearDeadline() {
+      document.getElementById('new-task-deadline').value = '';
+    }
 
     function showToast(text, icon = '✓') {
       const toast = document.getElementById('toast');
@@ -1092,13 +1420,14 @@
       const sub = document.getElementById('new-task-sub').value.trim() || null;
       const deadline = document.getElementById('new-task-deadline').value.trim() || null;
       const desc = document.getElementById('new-task-desc').value.trim();
-      const rawSteps = document.getElementById('new-task-steps').value.trim();
-
-      const checklist = rawSteps 
-        ? rawSteps.split('\n')
-            .map(s => s.trim().replace(/^[-*•]\s*/, '').replace(/^шаг\s*\d+:\s*/i, ''))
-            .filter(Boolean)
-        : [];
+      
+      // Сбор пошагового чеклиста из строк
+      const stepInputs = document.querySelectorAll('#new-task-steps-list .step-text-input');
+      const checklist = [];
+      stepInputs.forEach(inp => {
+        const val = inp.value.trim().replace(/^[-*•]\s*/, '').replace(/^шаг\s*\d+:\s*/i, '');
+        if (val) checklist.push(val);
+      });
 
       const newTask = {
         id: 't_user_' + Date.now(),
@@ -1119,11 +1448,17 @@
       closeNewTaskDrawer();
       showToast('Задача успешно добавлена!');
 
-      // Переключаемся на раздел созданной задачи
       filterByCategory(selectedNewTaskCat);
     }
 
-    
+    // Блокировка touchmove на оверлеях
+    ['modal-overlay', 'new-task-overlay', 'new-cat-overlay'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+      }
+    });
+
     // Логика блокировки PIN-кодом
     let currentPinInput = '';
     const SAVED_PIN_KEY = 'vladimir_pin_code_v1';
@@ -1182,7 +1517,6 @@
       const savedPin = localStorage.getItem(SAVED_PIN_KEY);
       const pinScreen = document.getElementById('pin-screen');
 
-      // Если PIN еще не был задан — устанавливаем введенный
       if (!savedPin) {
         localStorage.setItem(SAVED_PIN_KEY, currentPinInput);
         sessionStorage.setItem(SESSION_UNLOCKED_KEY, 'true');
@@ -1191,12 +1525,10 @@
         return;
       }
 
-      // Проверка существующего PIN
       if (currentPinInput === savedPin) {
         sessionStorage.setItem(SESSION_UNLOCKED_KEY, 'true');
         unlockApp();
       } else {
-        // Ошибка ввода
         updatePinDots(true);
         showToast('Неверный PIN-код', '❌');
         setTimeout(() => {
@@ -1249,6 +1581,7 @@
         renderCategories();
         renderTasks();
       });
+
   </script>
 </body>
 </html>
