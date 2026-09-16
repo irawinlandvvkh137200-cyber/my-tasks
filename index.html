@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Мой задачник · Владимир</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#090d16">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            bg: '#090d16',
+            card: '#131b2e',
+            cardHover: '#1c2742',
+            border: '#23304d',
+            accent: '#3b82f6',
+            accentGlow: 'rgba(59, 130, 246, 0.15)',
+            textMuted: '#94a3b8'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #090d16;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #23304d;
+      border-radius: 4px;
+    }
+    .bottom-sheet {
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+    }
+    .bottom-sheet.closed {
+      transform: translateY(105%);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .step-checkbox {
+      transition: all 0.2s ease;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
+
+  <!-- Экран блокировки PIN-кодом (iOS Style) -->
+  <div id="pin-screen" class="fixed inset-0 z-50 bg-[#090d16] flex flex-col items-center justify-center p-6 select-none transition-opacity duration-300">
+    <div class="max-w-xs w-full flex flex-col items-center space-y-6">
+      <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-3xl shadow-xl shadow-blue-500/20">
+        🎯
+      </div>
+      <div class="text-center">
+        <h2 id="pin-title" class="text-lg font-bold text-white">Мой задачник</h2>
+        <p id="pin-subtitle" class="text-xs text-slate-400 mt-1">Введите 4-значный PIN-код</p>
+      </div>
+
+      <!-- 4 индикатора точек -->
+      <div id="pin-dots" class="flex items-center gap-4 py-2">
+        <div class="pin-dot w-3.5 h-3.5 rounded-full border-2 border-slate-600 transition-all"></div>
+        <div class="pin-dot w-3.5 h-3.5 rounded-full border-2 border-slate-600 transition-all"></div>
+        <div class="pin-dot w-3.5 h-3.5 rounded-full border-2 border-slate-600 transition-all"></div>
+        <div class="pin-dot w-3.5 h-3.5 rounded-full border-2 border-slate-600 transition-all"></div>
+      </div>
+
+      <!-- Клавиатура 3x4 -->
+      <div class="grid grid-cols-3 gap-3.5 w-full max-w-[260px] pt-3">
+        <button onclick="pressPin('1')" class="h-16 rounded-2xl bg-[#131b2e] hover:bg-cardHover active:bg-blue-600 border border-border text-xl font-bold text-white transition-all">1</button>
+        <button onclick="pressPin('2')" class="h-16 rounded-2xl bg-[#131b2e] hover:bg-cardHover active:bg-blue-600 border border-border text-xl font-bold text-white transition-all">2</button>
+        <button onclick="pressPin('3')" class="h-16 rounded-2xl bg-[#131b2e] hover:bg-cardHover active:bg-blue-600 border border-border text-xl font-bold text-white transition-all">3</button>
+        <button onclick="pressPin('4')" class="h-16 rounded-2xl bg-[#131b2e] hover:bg-cardHover active:bg-blue-600 border border-border text-xl font-bold text-white transition-all">4</button>
+        <button onclick="pressPin('5')" class="h-16 rounded-2xl bg-[#131b2e] hover:bg-cardHover active:bg-blue-600 border border-border text-xl font-bold text-white transition-all">5</button>
+        <button onclick="pressPin('6')" class="h-16 rounded-2xl bg-[#131b2e] hover:bg-cardHover active:bg-blue-600 border border-border text-xl font-bold text-white transition-all">6</button>
+        <button onclick="pressPin('7')" class="h-16 rounded-2xl bg-[#131b2e] hover:bg-cardHover active:bg-blue-600 border border-border text-xl font-bold text-white transition-all">7</button>
+        <button onclick="pressPin('8')" class="h-16 rounded-2xl bg-[#131b2e] hover:bg-cardHover active:bg-blue-600 border border-border text-xl font-bold text-white transition-all">8</button>
+        <button onclick="pressPin('9')" class="h-16 rounded-2xl bg-[#131b2e] hover:bg-cardHover active:bg-blue-600 border border-border text-xl font-bold text-white transition-all">9</button>
+        <div></div>
+        <button onclick="pressPin('0')" class="h-16 rounded-2xl bg-[#131b2e] hover:bg-cardHover active:bg-blue-600 border border-border text-xl font-bold text-white transition-all">0</button>
+        <button onclick="deletePin()" class="h-16 rounded-2xl bg-transparent hover:bg-cardHover border border-transparent text-lg text-slate-400 active:text-white transition-all flex items-center justify-center">⌫</button>
+      </div>
+
+      <button id="pin-reset-device-btn" onclick="resetPinOnDevice()" class="text-[11px] text-slate-500 hover:text-slate-400 transition-colors pt-1">
+        Сменить PIN-код
+      </button>
+    </div>
+  </div>
+
+
+  <!-- Шапка приложения -->
+  <header class="sticky top-0 z-30 bg-[#090d16]/85 backdrop-blur-md border-b border-border/60 px-4 py-3 sm:px-6">
+    <div class="max-w-3xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-lg font-bold shadow-lg shadow-blue-500/20">
+          🎯
+        </div>
+        <div>
+          <h1 class="text-base font-bold text-slate-100 leading-tight">Мой задачник</h1>
+          <div class="flex items-center gap-2 text-xs text-emerald-400 font-medium">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="sync-status">Синхронизировано онлайн</span>
+          </div>
+        </div>
+      </div>
+
+      <button id="reset-filter-btn" class="hidden text-xs bg-cardHover border border-border px-3 py-1.5 rounded-lg text-slate-300 hover:text-white transition-all">
+        ← Все разделы
+      </button>
+    </div>
+  </header>
+
+  <!-- Основной контент -->
+  <main class="flex-1 max-w-3xl w-full mx-auto p-4 sm:p-6 space-y-6">
+
+    <!-- Плитки верхнего уровня (7 разделов: Работа, Prime Lead, Дом, Дача, Собака, Машины, Личное) -->
+    <section>
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Разделы</h2>
+        <span id="total-stat" class="text-xs text-slate-500">20 задач · 3 со сроком</span>
+      </div>
+
+      <div id="categories-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+        <!-- Генерируется из JS -->
+      </div>
+    </section>
+
+    <!-- Активный список задач -->
+    <section class="space-y-4">
+      <div class="flex items-center justify-between pt-2">
+        <h2 id="active-category-title" class="text-sm font-bold text-slate-200 flex items-center gap-2">
+          <span>Все задачи</span>
+        </h2>
+        <span id="category-task-count" class="text-xs text-slate-400 bg-card px-2 py-0.5 rounded border border-border">20</span>
+      </div>
+
+      <!-- Контейнер задач с вертикальными линиями подкатегорий -->
+      <div id="tasks-container" class="space-y-4">
+        <!-- Генерируется из JS -->
+      </div>
+    </section>
+
+  </main>
+
+    <!-- Плавающая кнопка добавления задачи (FAB) -->
+  <button id="add-task-fab" onclick="openNewTaskDrawer()" title="Добавить задачу" class="fixed bottom-6 right-6 z-30 w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-500 active:scale-95 shadow-2xl shadow-blue-600/50 text-white flex items-center justify-center text-3xl font-light transition-all border border-blue-400/40 select-none">
+    +
+  </button>
+
+  <!-- Всплывающий тост (Уведомление) -->
+  <div id="toast" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-emerald-500/95 text-white font-semibold text-xs shadow-2xl backdrop-blur-md transition-all duration-300 pointer-events-none opacity-0 -translate-y-4 flex items-center gap-2 border border-emerald-300/40">
+    <span id="toast-icon">✓</span>
+    <span id="toast-text">Задача создана!</span>
+  </div>
+
+  <!-- Шторка создания новой задачи (New Task Drawer) -->
+  <div id="new-task-overlay" class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200"></div>
+
+  <div id="new-task-sheet" class="bottom-sheet closed fixed bottom-0 left-0 right-0 z-50 max-w-2xl mx-auto bg-[#131b2e] border-t border-border rounded-t-3xl shadow-2xl max-h-[92vh] flex flex-col">
+    <!-- Ручка свайпа -->
+    <div class="w-full flex justify-center py-2.5 cursor-pointer" onclick="closeNewTaskDrawer()">
+      <div class="w-10 h-1 bg-slate-600/70 rounded-full"></div>
+    </div>
+
+    <!-- Шапка шторки -->
+    <div class="px-6 pb-3 pt-1 border-b border-border/50 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">✍️</span>
+        <h3 class="text-base sm:text-lg font-bold text-white">Новая задача</h3>
+      </div>
+      <button onclick="closeNewTaskDrawer()" class="text-slate-400 hover:text-white p-1.5 rounded-lg bg-slate-800/50">
+        ✕
+      </button>
+    </div>
+
+    <!-- Поля ввода со скроллом -->
+    <div class="px-6 py-4 overflow-y-auto custom-scroll space-y-4 flex-1 text-sm">
+      <!-- Название задачи -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Что нужно сделать? *</label>
+        <input id="new-task-title" type="text" placeholder="Например: Заказать фильтры на Ниву" class="w-full bg-[#090d16]/80 border border-border rounded-xl p-3.5 text-slate-100 placeholder:text-slate-500 text-sm focus:outline-none focus:border-blue-500 transition-all">
+      </div>
+
+      <!-- Выбор раздела (чипсы) -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Раздел *</label>
+        <div id="new-task-cat-chips" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <!-- Генерируется из JS -->
+        </div>
+      </div>
+
+      <!-- Пресеты и поле подраздела -->
+      <div id="new-task-sub-wrapper">
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Уточнение / Подраздел (опционально)</label>
+        <div id="new-task-sub-presets" class="flex flex-wrap gap-1.5 mb-2"></div>
+        <input id="new-task-sub" type="text" placeholder="Например: Volvo S60 или Дела на даче" class="w-full bg-[#090d16]/80 border border-border rounded-xl p-3 text-slate-100 placeholder:text-slate-500 text-xs focus:outline-none focus:border-blue-500 transition-all">
+      </div>
+
+      <!-- Дедлайн -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Срок / Дедлайн ⏳ (опционально)</label>
+        <input id="new-task-deadline" type="text" placeholder="Например: до 25 сентября или 01.10 в 14:00" class="w-full bg-[#090d16]/80 border border-border rounded-xl p-3 text-slate-100 placeholder:text-slate-500 text-xs focus:outline-none focus:border-blue-500 transition-all">
+      </div>
+
+      <!-- Описание -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Описание и контекст (опционально)</label>
+        <textarea id="new-task-desc" rows="2" placeholder="Дополнительные детали, ссылки, артикулы запчастей..." class="w-full bg-[#090d16]/80 border border-border rounded-xl p-3 text-slate-100 placeholder:text-slate-500 text-xs focus:outline-none focus:border-blue-500 transition-all"></textarea>
+      </div>
+
+      <!-- Микрошаги чеклиста -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Микрошаги чеклиста (по одному на строку)</label>
+        <textarea id="new-task-steps" rows="3" placeholder="Шаг 1: Найти запчасть&#10;Шаг 2: Оформить самовывоз&#10;Шаг 3: Поставить в гараже" class="w-full bg-[#090d16]/80 border border-border rounded-xl p-3 text-slate-100 placeholder:text-slate-500 text-xs focus:outline-none focus:border-blue-500 transition-all font-mono"></textarea>
+        <p class="text-[11px] text-slate-500 mt-1">Каждая новая строка станет отдельным кликабельным шагом с галочкой.</p>
+      </div>
+    </div>
+
+    <!-- Кнопка сохранения -->
+    <div class="p-4 border-t border-border/50 bg-[#090d16]/70 flex items-center justify-between gap-3">
+      <button onclick="createNewTask()" class="flex-1 py-3.5 px-4 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2">
+        <span>✓ Сохранить задачу</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Выезжающая шторка карточки задачи (Trello Style Drawer) -->
+  <div id="modal-overlay" class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200"></div>
+
+  <div id="bottom-sheet" class="bottom-sheet closed fixed bottom-0 left-0 right-0 z-50 max-w-2xl mx-auto bg-[#131b2e] border-t border-border rounded-t-3xl shadow-2xl max-h-[90vh] flex flex-col">
+    <!-- Ручка свайпа -->
+    <div class="w-full flex justify-center py-2.5 cursor-pointer" onclick="closeDrawer()">
+      <div class="w-10 h-1 bg-slate-600/70 rounded-full"></div>
+    </div>
+
+    <!-- Заголовок карточки -->
+    <div class="px-6 pb-3 pt-1 border-b border-border/50 flex items-start justify-between gap-4">
+      <div class="flex-1 min-w-0">
+        <span id="modal-category" class="text-[11px] font-bold text-blue-400 uppercase tracking-wider">Раздел</span>
+        <h3 id="modal-title" class="text-base sm:text-lg font-bold text-white leading-snug mt-0.5">Название задачи</h3>
+      </div>
+      <button onclick="closeDrawer()" class="text-slate-400 hover:text-white p-1.5 rounded-lg bg-slate-800/50">
+        ✕
+      </button>
+    </div>
+
+    <!-- Тело карточки со скроллом -->
+    <div class="px-6 py-4 overflow-y-auto custom-scroll space-y-4 flex-1 text-sm">
+      <!-- Блок дедлайна -->
+      <div id="modal-deadline-box" class="hidden p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-2.5 text-amber-300 font-medium">
+        <span class="text-base">⏳</span>
+        <span id="modal-deadline">Срок задачи</span>
+      </div>
+
+      <!-- Описание -->
+      <div id="modal-desc-wrapper">
+        <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Описание и контекст</h4>
+        <div id="modal-desc" class="text-slate-200 leading-relaxed bg-[#090d16]/50 p-3.5 rounded-xl border border-border/60 whitespace-pre-wrap"></div>
+      </div>
+
+      <!-- Дофаминовый чеклист шагов -->
+      <div id="modal-checklist-wrapper" class="space-y-2">
+        <div class="flex items-center justify-between">
+          <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Пошаговый чеклист</h4>
+          <span id="checklist-progress-text" class="text-xs font-bold text-emerald-400">0 из 0 (0%)</span>
+        </div>
+
+        <!-- Полоска прогресса -->
+        <div class="w-full bg-slate-800/80 rounded-full h-2 overflow-hidden border border-border/50">
+          <div id="checklist-progress-bar" class="bg-gradient-to-r from-blue-500 to-emerald-400 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+
+        <!-- Баннер победы при 100% чеклиста -->
+        <div id="checklist-complete-banner" class="hidden p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-semibold flex items-center gap-2">
+          <span>🎉</span> <span>Все микрошаги закрыты! Красава, задачу можно завершать!</span>
+        </div>
+
+        <!-- Список интерактивных пунктов чеклиста -->
+        <div id="modal-checklist" class="space-y-2 pt-1"></div>
+      </div>
+    </div>
+
+    <!-- Нижняя плашка действий -->
+    <div class="p-4 border-t border-border/50 bg-[#090d16]/70 flex items-center justify-between gap-3">
+      <button id="modal-toggle-btn" onclick="toggleCurrentTaskDone()" class="flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+        <span>Отметить сделанным</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Данные приложения и интерактивная логика -->
+  <script>
+    // 7 самостоятельных разделов (Работа и Prime Lead разделены)
+    const CATEGORIES = [
+      { id: 'work', name: 'Работа', emoji: '💼' },
+      { id: 'prime', name: 'Prime Lead', emoji: '🤝' },
+      { id: 'home', name: 'Дом', emoji: '🏠' },
+      { id: 'dacha', name: 'Дача', emoji: '🏡' },
+      { id: 'dog', name: 'Собака', emoji: '🐕' },
+      { id: 'cars', name: 'Машины', emoji: '🚗' },
+      { id: 'personal', name: 'Личное', emoji: '👤' }
+    ];
+
+    /* START_INITIAL_TASKS */
+    const INITIAL_TASKS = [
+  {
+    "id": "t_1",
+    "cat": "work",
+    "sub": null,
+    "title": "Адаптация и публикация резюме на HeadHunter",
+    "done": false,
+    "deadline": null,
+    "checklist": [
+      "Авторизоваться в кабинете соискателя на hh.ru",
+      "Создать новое резюме с должностью «Директор по маркетингу / CMO»",
+      "Скопировать блоки «О себе», ключевые навыки и подтвержденный опыт («Додо», «Меканика», «МореШоу»)",
+      "Прикрепить PDF-версию резюме в портфолио",
+      "Опубликовать резюме и включить статус «Активно ищу работу»"
+    ],
+    "desc": "Исходники: [`карьера/resume_master_v3.md`](file:///Users/vladimirnazarov/antigravity/%D0%BB%D0%B8%D1%87%D0%BD%D0%BE%D0%B5/%D0%BA%D0%B0%D1%80%D1%8C%D0%B5%D1%80%D0%B0/resume_master_v3.md) и откомпилированный PDF v3. Перенести оцифрованную фактуру и метрики в кабинет hh.ru для роли CMO."
+  },
+  {
+    "id": "t_2",
+    "cat": "work",
+    "sub": null,
+    "title": "Запуск воронки целевых откликов",
+    "done": false,
+    "deadline": null,
+    "checklist": [
+      "Отобрать пул из 10–15 свежих вакансий CMO / Head of Marketing на HH и в Telegram-каналах",
+      "Кастомизировать шаблон сопроводительного письма под каждого работодателя",
+      "Отправить отклики и занести контакты HR в таблицу `tracker.md`",
+      "Запланировать фоллоу-ап через 3 дня при отсутствии ответа"
+    ],
+    "desc": "Шаблоны писем: [`карьера/cover_letters.md`](file:///Users/vladimirnazarov/antigravity/%D0%BB%D0%B8%D1%87%D0%BD%D0%BE%D0%B5/%D0%BA%D0%B0%D1%80%D1%8C%D0%B5%D1%80%D0%B0/cover_letters.md), таблица: [`карьера/tracker.md`](file:///Users/vladimirnazarov/antigravity/%D0%BB%D0%B8%D1%87%D0%BD%D0%BE%D0%B5/%D0%BA%D0%B0%D1%80%D1%8C%D0%B5%D1%80%D0%B0/tracker.md). Отправка 10–15 точечных откликов в неделю."
+  },
+  {
+    "id": "t_3",
+    "cat": "prime",
+    "sub": null,
+    "title": "Согласование логотипа и фирменного стиля «ДС Клиник»",
+    "done": false,
+    "deadline": null,
+    "checklist": [
+      "Написать сообщение собственнику с вариантами логотипа",
+      "Получить финальное «ок» и выбор конкретного знака",
+      "Передать векторные исходники SMM-щику",
+      "Запустить оформление шапок, аватарок и хайлайтсов в соцсетях клиники"
+    ],
+    "desc": "Блокер: SMM-специалист подготовил контент, но оформление профилей стоит без утвержденного лого. Нужно забрать финальный аппрув от собственника."
+  },
+  {
+    "id": "t_4",
+    "cat": "home",
+    "sub": null,
+    "title": "Повесить гардину со шторами + заклеить потолок",
+    "done": false,
+    "deadline": null,
+    "checklist": [
+      "Договориться с помощником на удобный день/время",
+      "Подготовить перфоратор/дрель, бур, дюбели и строительный уровень",
+      "Вдвоем примерить гардину к потолку и выставить по уровню",
+      "Разметить точки бурения карандашом",
+      "Просверлить отверстия и вбить дюбели",
+      "Прикрутить гардину и проверить надежность фиксации",
+      "Повесить шторы на крючки/кольца",
+      "Аккуратно подклеить поврежденный край потолка прозрачным монтажным скотчем"
+    ],
+    "desc": "Дырки от старой гардины заделаны фугенфюллером и покрашены. Делаем вдвоем с помощником: примерка по уровню, бурение, монтаж и аккуратная подклейка потолка."
+  },
+  {
+    "id": "t_5",
+    "cat": "home",
+    "sub": null,
+    "title": "Ревизия и настройка умного дома",
+    "done": false,
+    "deadline": null,
+    "checklist": [
+      "Взять ИК-пульт и заново прописать команду включения/цветов светодиодной ленты в хабе",
+      "Снять настенную кнопку выключения света, проверить батарейку и качество контакта",
+      "Перепривязать кнопку в приложении Яндекса / хабе",
+      "Проверить датчик движения: заменить элемент питания и перенастроить порог срабатывания",
+      "Протестировать сценарий: движение ➔ свет включается; тайм-аут ➔ свет гаснет"
+    ],
+    "desc": "Восстановление сценариев автоматизации: перепривязка светодиодной ленты от ИК-пульта, диагностика настенной кнопки света и калибровка датчика движения."
+  },
+  {
+    "id": "t_6",
+    "cat": "home",
+    "sub": null,
+    "title": "⚪ Генеральная уборка",
+    "done": false,
+    "deadline": null,
+    "checklist": [
+      "Разложить вещи по местам в комнатах",
+      "Протереть зеркала спецсредством от разводов",
+      "Пропылесосить ковры и вымыть полы"
+    ],
+    "desc": "Поддерживающая уборка дома: наведение порядка по комнатам, чистка зеркал спецсредством от разводов, сухая и влажная уборка полов."
+  },
+  {
+    "id": "t_7",
+    "cat": "dacha",
+    "sub": "Дела на даче",
+    "title": "Утепление скважины и зимний ввод воды",
+    "done": false,
+    "deadline": "до заморозков (сентябрь)",
+    "checklist": [
+      "Выбрать модель скважинного адаптера 1\" (латунь/бронза с резиновым уплотнителем)",
+      "Заказать адаптер и трубу ПНД 32 мм",
+      "Разметить трассу траншеи от скважины к фундаменту дома",
+      "Выкопать траншею глубиной 1.8–2.0 м (ниже глубины промерзания для Самары)",
+      "Просверлить коронкой отверстие в обсадной трубе на глубине 1.8 м",
+      "Опустить и зафиксировать нижнюю часть адаптера специальной монтажной штангой",
+      "Соединить адаптер с насосом и завести трубу в дом",
+      "Утеплить гильзу ввода в фундамент и засыпать траншею"
+    ],
+    "desc": "Критично сделать до заморозков, пока копается земля. Монтаж латунного скважинного адаптера 1\" на глубине 1.8 м (ниже промерзания), ввод ПНД 32 в дом."
+  },
+  {
+    "id": "t_8",
+    "cat": "dacha",
+    "sub": "Дела на даче",
+    "title": "Отопление дома на зиму от разморозки",
+    "done": false,
+    "deadline": null,
+    "checklist": [
+      "Заказать 1 кварцевый обогреватель «ТеплЭко» (мощность 400 Вт)",
+      "Заказать умную розетку с термодатчиком (Wi-Fi или термореле с выносным щупом)",
+      "Закрепить обогреватель на стене на даче на штатные кронштейны",
+      "Настроить в приложении режим: включение при +3°C, отключение при +6°C",
+      "Проверить работу системы в тестовом цикле"
+    ],
+    "desc": "Защита труб и сантехники от перемерзания: кварцевый энергоэффективный обогреватель ТеплЭко 400 Вт + термореле / умная розетка на поддержание +3...+6°C."
+  },
+  {
+    "id": "t_9",
+    "cat": "dacha",
+    "sub": "Дела на даче",
+    "title": "Заказ двойной мойки для посуды",
+    "done": false,
+    "deadline": null,
+    "checklist": [
+      "Замерить посадочное место на дачной кухне под раковину",
+      "Выбрать модель двойной нержавеющей мойки в каталоге «Леруа Мерлен» («Лемана Про»)",
+      "Проверить комплектность (сифон, перелив, крепежи)",
+      "Оформить заказ с самовывозом или доставкой"
+    ],
+    "desc": "Подбор и заказ двухсекционной нержавеющей мойки в каталоге Лемана Про (Леруа Мерлен) для удобной дачной кухни."
+  },
+  {
+    "id": "t_10",
+    "cat": "dacha",
+    "sub": "Хозблок (Спринт 2027)",
+    "title": "⚪ Разработка проекта хозблока",
+    "done": false,
+    "deadline": null,
+    "checklist": [
+      "Снять точные размеры пятна застройки на участке",
+      "Нарисовать эскиз каркаса в размерах (длина, ширина, высота, уклон кровли)",
+      "Рассчитать сечение профильной трубы (стойки 60х60, лаги и фермы 40х20)",
+      "Подобрать тип обшивки (профлист С8/С20 или сайдинг)",
+      "Составить сводную ведомость материалов и рассчитать бюджет"
+    ],
+    "desc": "Строительство хозблока/мастерской перенесено на сезон 2027 года. За зиму подготовить точные чертежи, спецификацию металла и смету."
+  },
+  {
+    "id": "t_11",
+    "cat": "dog",
+    "sub": null,
+    "title": "Заказ корма для Роя",
+    "done": false,
+    "deadline": "до 20–23 сентября",
+    "checklist": [
+      "Проверить остаток корма в мешке (на сколько дней осталось)",
+      "Найти нужную марку и фасовку на Ozon или Wildberries",
+      "Оформить заказ с доставкой в ближайший пункт выдачи",
+      "Забрать мешок из ПВЗ и пересыпать в контейнер"
+    ],
+    "desc": "Рой: миниатюрный бультерьер, 3 года. Корм в мешке подходит к концу, заказать заранее на Ozon или WB, чтобы не остался голодным."
+  },
+  {
+    "id": "t_12",
+    "cat": "cars",
+    "sub": "Volvo S60 (2007)",
+    "title": "Замена рулевых наконечников",
+    "done": false,
+    "deadline": null,
+    "checklist": [
+      "Заказать пару рулевых наконечников (Lemförder / TRW) по VIN-номеру",
+      "Записаться в профильный сервис на замену",
+      "Заехать на СТО, поменять наконечники",
+      "Обязательно сделать процедуру сход-развала передней оси",
+      "Протестировать четкость «нуля» и отсутствие уводов на прямой"
+    ],
+    "desc": "Наконечникам конец, критично для безопасности управления. Замена пары (Lemförder / TRW) с обязательной регулировкой сход-развала."
+  },
+  {
+    "id": "t_13",
+    "cat": "cars",
+    "sub": "Volvo S60 (2007)",
+    "title": "Установка заглушек омывателей фар на бампере",
+    "done": false,
+    "deadline": null,
+    "checklist": [
+      "Достать заглушки (проверить наличие фиксаторов и пружин)",
+      "Очистить посадочные ниши в бампере от дорожного песка и пыли",
+      "Вручную аккуратно подтянуть телескопический шток омывателя на себя",
+      "Защелкнуть заглушку на направляющие до характерного щелчка",
+      "Проверить плавность возврата штока в бампер без заклиниваний"
+    ],
+    "desc": "Монтаж защитных крышек на телескопические форсунки омывателя переднего бампера Volvo S60. Проверить пружины и свободный ход штоков."
+  },
+  {
+    "id": "t_14",
+    "cat": "cars",
+    "sub": "Volvo S60 (2007)",
+    "title": "⚪ Комплексная мойка и уборка салона",
+    "done": false,
+    "deadline": null,
+    "checklist": [
+      "Заехать на мойку (кузов с пеной и сушкой)",
+      "Тщательно пропылесосить ковролин и сиденья",
+      "Протереть пластик торпеды и карт дверей матовым очистителем",
+      "Очистить стекла изнутри от налета"
+    ],
+    "desc": "Полный уход за автомобилем: мойка кузова с пеной и сушкой, уборка салона пылесосом, матовая обработка пластика торпеды и карт дверей."
+  },
+  {
+    "id": "t_15",
+    "cat": "cars",
+    "sub": "ВАЗ-2121 «Нива» (1983)",
+    "title": "Установка моторчика омывателя лобового стекла",
+    "done": false,
+    "deadline": null,
+    "checklist": [
+      "Забрать заказанный моторчик омывателя из ПВЗ Ozon",
+      "Открыть капот Нивы, снять старый насос с бачка омывателя",
+      "Заменить резиновую уплотнительную втулку в бачке",
+      "Вставить новый насос, надеть шланг подачи омывайки",
+      "Подключить электрическую фишку и проверить распыл на лобовое"
+    ],
+    "desc": "Насос омывателя заказан на Ozon. Забрать из пункта выдачи, заменить уплотнительную резинку и смонтировать в бачок."
+  },
+  {
+    "id": "t_16",
+    "cat": "cars",
+    "sub": "ВАЗ-2121 «Нива» (1983)",
+    "title": "Ревизия электрики: приборная панель и люстра на крыше",
+    "done": false,
+    "deadline": null,
+    "checklist": [
+      "Снять комбинацию приборов, проверить лампочку индикатора включения фар и её патрон",
+      "Прозвонить контролькой провод питания от клавиши света к приборке",
+      "Проверить блок предохранителей Нивы (почистить контакты от окислов)",
+      "Найти точку крепления массы (`GND`) под торпедой, зачистить до металла и протянуть гайку",
+      "Проверить разъемы проводки люстры на крыше: выявить обрыв, реагирующий на удары по панели"
+    ],
+    "desc": "Устранение плавающих контактов: не горит контрольная лампа фар на комбинации приборов, чистка массы под торпедой, проверка разъемов люстры на крыше."
+  },
+  {
+    "id": "t_17",
+    "cat": "cars",
+    "sub": "ВАЗ-2101 «Копейка» (1979, шеснарь 16V от Приоры)",
+    "title": "Купить РХХ на шеснарь 21126 по пути на дачу",
+    "done": false,
+    "deadline": null,
+    "checklist": [
+      "Заехать в магазин автозапчастей ВАЗ",
+      "Попросить оригинальный РХХ на 16-клапанный мотор 21126 (оригинал КЗТА Калуга или Омега)",
+      "Проверить диаметр шляпки иглы и плавность хода",
+      "Взять баллончик очистителя карбюратора/дросселя для промывки посадочного колодца"
+    ],
+    "desc": "Заехать в автозапчасти перед выездом на дачу. Купить оригинальный РХХ на приоромотор 21126 (КЗТА Калуга или Омега) + баллончик очистителя дросселя."
+  },
+  {
+    "id": "t_18",
+    "cat": "cars",
+    "sub": "ВАЗ-2101 «Копейка» (1979, шеснарь 16V от Приоры)",
+    "title": "Замена РХХ и диагностика горячего пуска на даче",
+    "done": false,
+    "deadline": null,
+    "checklist": [
+      "Снять старый РХХ с дроссельного узла (2 винта под крест)",
+      "Промыть очистителем канал холостого хода в дросселе",
+      "Установить новый РХХ с новым резиновым колечком",
+      "Запустить мотор, прогреть до рабочей температуры (15 минут)",
+      "Заглушить двигатель, подождать 3–5 минут",
+      "Попробовать запуск на горячую (при необходимости проверить отклик на приоткрытый газ на 10%)",
+      "Осмотреть экранированный провод ДПКВ у выпускного паука на предмет оплавления изоляции",
+      "Проверить затяжку массы косы ЭБУ на шпильке ГБЦ"
+    ],
+    "desc": "Симптом: на холодную пуск с полоборота, после 15 мин поездки стартер крутит вхолостую. Замена РХХ, тест с приоткрытой педалью газа, ревизия массы ЭБУ и провода ДПКВ у паука."
+  },
+  {
+    "id": "t_19",
+    "cat": "personal",
+    "sub": null,
+    "title": "Замена водительского удостоверения в ГИБДД",
+    "done": false,
+    "deadline": "01.10.2026 в 14:00",
+    "checklist": [
+      "Найти и проверить срок действия медицинской справки (форма 003-В/у)",
+      "Оплатить госпошлину за замену ВУ через Госуслуги или банк",
+      "Распечатать электронный талон записи на 01.10 в 14:00 (у «Самара Арены»)",
+      "Собрать в папку: паспорт РФ, старое водительское удостоверение, медсправку, квитанцию",
+      "01.10 выехать заранее с учетом пробок к стадиону «Самара Арена»",
+      "Получить новые права и проверить правильность написания данных"
+    ],
+    "desc": "Отделение ГИБДД у «Самара Арены» в 14:00. Права просрочены — предельная аккуратность за рулем! Пакет: паспорт, старое ВУ, медсправка 003-В/у, квитанция пошлины."
+  },
+  {
+    "id": "t_20",
+    "cat": "personal",
+    "sub": null,
+    "title": "Доработка персонального VPN (VLESS Reality)",
+    "done": false,
+    "deadline": null,
+    "checklist": [
+      "Проверить доступность VPS-сервера по SSH",
+      "Обновить конфигурацию Xray до актуальной версии",
+      "Сгенерировать свежие ключи и SNI-маскировку",
+      "Импортировать готовые конфигурационные ссылки на Mac и iPhone",
+      "Протестировать стабильность подключения и пинг"
+    ],
+    "desc": "Настройка серверной части на протоколе VLESS Reality: обновление Xray-core, генерация свежих ключей и маскировки, проверка соединения на Mac и iPhone."
+  }
+];
+    /* END_INITIAL_TASKS */
+    let tasks = JSON.parse(JSON.stringify(INITIAL_TASKS));
+    let checkedSteps = {}; // { taskId: [0, 2] }
+    let activeFilter = 'all';
+    let currentModalTaskId = null;
+
+    // Загрузка состояния сохраненных шагов из localStorage
+    try {
+      const savedSteps = localStorage.getItem('vladimir_task_steps_v2');
+      if (savedSteps) checkedSteps = JSON.parse(savedSteps);
+    } catch(e) {
+      checkedSteps = {};
+    }
+
+    function saveStepsState() {
+      try {
+        localStorage.setItem('vladimir_task_steps_v2', JSON.stringify(checkedSteps));
+      } catch(e) {}
+    }
+
+    function saveTasksState() {
+      try {
+        localStorage.setItem('vladimir_tasks_state_v2', JSON.stringify(tasks));
+      } catch(e) {}
+    }
+
+    // Рендер плиток верхнего уровня
+    function renderCategories() {
+      const grid = document.getElementById('categories-grid');
+      grid.innerHTML = '';
+
+      CATEGORIES.forEach(cat => {
+        const catTasks = tasks.filter(t => t.cat === cat.id);
+        const total = catTasks.length;
+        const withDeadline = catTasks.filter(t => t.deadline && !t.done).length;
+        const isActive = activeFilter === cat.id;
+
+        const card = document.createElement('div');
+        card.className = `p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between select-none ${
+          isActive 
+            ? 'bg-blue-600/20 border-blue-500 shadow-lg shadow-blue-500/10' 
+            : 'bg-card border-border hover:border-slate-500/50 hover:bg-cardHover'
+        }`;
+        card.onclick = () => filterByCategory(cat.id);
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-2xl">${cat.emoji}</span>
+            ${withDeadline > 0 ? `<span class="text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md flex items-center gap-1">⏳ ${withDeadline}</span>` : ''}
+          </div>
+          <div class="mt-3">
+            <div class="font-bold text-slate-100 text-sm leading-tight">${cat.name}</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">${total} ${getDeclension(total, ['задача', 'задачи', 'задач'])}</div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+
+      const totalCount = tasks.length;
+      const deadlinesCount = tasks.filter(t => t.deadline && !t.done).length;
+      document.getElementById('total-stat').textContent = `${totalCount} задач · ${deadlinesCount} со сроком`;
+    }
+
+    function getDeclension(number, titles) {
+      const cases = [2, 0, 1, 1, 1, 2];
+      return titles[(number % 100 > 4 && number % 100 < 20) ? 2 : cases[(number % 10 < 5) ? number % 10 : 5]];
+    }
+
+    function filterByCategory(catId) {
+      activeFilter = catId;
+      document.getElementById('reset-filter-btn').classList.toggle('hidden', catId === 'all');
+      renderCategories();
+      renderTasks();
+    }
+
+    document.getElementById('reset-filter-btn').onclick = () => filterByCategory('all');
+
+    // Рендер активного списка задач
+    function renderTasks() {
+      const container = document.getElementById('tasks-container');
+      container.innerHTML = '';
+
+      let filtered = activeFilter === 'all' ? tasks : tasks.filter(t => t.cat === activeFilter);
+      
+      const catObj = CATEGORIES.find(c => c.id === activeFilter);
+      document.getElementById('active-category-title').innerHTML = activeFilter === 'all' 
+        ? '<span>Все задачи</span>' 
+        : `<span>${catObj.emoji} ${catObj.name}</span>`;
+      document.getElementById('category-task-count').textContent = filtered.length;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="p-8 text-center text-slate-500 text-sm">В этом разделе пока нет активных задач</div>`;
+        return;
+      }
+
+      // Группировка по подразделам
+      const groups = {};
+      filtered.forEach(task => {
+        const subKey = task.sub || '__no_sub__';
+        if (!groups[subKey]) groups[subKey] = [];
+        groups[subKey].push(task);
+      });
+
+      Object.keys(groups).forEach(subKey => {
+        const subWrapper = document.createElement('div');
+        subWrapper.className = 'space-y-2';
+
+        if (subKey !== '__no_sub__') {
+          const subHeader = document.createElement('div');
+          subHeader.className = 'pl-3 border-l-2 border-blue-500 py-0.5 text-xs font-bold text-slate-300 uppercase tracking-wide flex items-center gap-1.5';
+          subHeader.innerHTML = `<span>${subKey}</span>`;
+          subWrapper.appendChild(subHeader);
+        }
+
+        const listDiv = document.createElement('div');
+        listDiv.className = 'space-y-1.5';
+
+        groups[subKey].forEach(task => {
+          const taskStepsDone = checkedSteps[task.id] || [];
+          const totalSteps = (task.checklist || []).length;
+          const hasSteps = totalSteps > 0;
+
+          const taskRow = document.createElement('div');
+          taskRow.className = `p-3 rounded-xl border transition-all flex items-center justify-between gap-3 cursor-pointer select-none ${
+            task.done 
+              ? 'bg-[#0b101c]/40 border-border/40 opacity-60' 
+              : 'bg-card border-border hover:border-slate-500/40 hover:bg-cardHover'
+          }`;
+
+          taskRow.innerHTML = `
+            <div class="flex items-center gap-3 flex-1 min-w-0" onclick="openDrawer('${task.id}')">
+              <input type="checkbox" ${task.done ? 'checked' : ''} 
+                onclick="event.stopPropagation(); toggleTaskDone('${task.id}')"
+                class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-0 focus:ring-offset-0 cursor-pointer">
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium text-slate-100 truncate ${task.done ? 'line-through text-slate-500' : ''}">
+                  ${task.title}
+                </div>
+                <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                  ${task.deadline && !task.done ? `
+                    <div class="text-[11px] text-amber-400 font-medium flex items-center gap-1">
+                      <span>⏳</span> <span>${task.deadline}</span>
+                    </div>
+                  ` : ''}
+                  ${hasSteps && !task.done ? `
+                    <div class="text-[11px] ${taskStepsDone.length === totalSteps ? 'text-emerald-400 font-bold' : 'text-slate-400'} flex items-center gap-1">
+                      <span>✓ ${taskStepsDone.length}/${totalSteps}</span>
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+            </div>
+            <div class="text-slate-500 hover:text-slate-300 px-1 text-xs" onclick="openDrawer('${task.id}')">
+              ›
+            </div>
+          `;
+          listDiv.appendChild(taskRow);
+        });
+
+        subWrapper.appendChild(listDiv);
+        container.appendChild(subWrapper);
+      });
+    }
+
+    function toggleTaskDone(taskId) {
+      const task = tasks.find(t => t.id === taskId);
+      if (task) {
+        task.done = !task.done;
+        // Если задачу закрыли вручную — проставляем все шаги в чеклисте
+        if (task.done && task.checklist && task.checklist.length > 0) {
+          checkedSteps[taskId] = task.checklist.map((_, i) => i);
+          saveStepsState();
+        }
+        saveTasksState();
+        renderCategories();
+        renderTasks();
+        if (currentModalTaskId === taskId) {
+          renderModalChecklist(task);
+          updateModalBtnState(task.done);
+        }
+      }
+    }
+
+    // Открытие шторки задачи
+    function openDrawer(taskId) {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      currentModalTaskId = taskId;
+      const cat = CATEGORIES.find(c => c.id === task.cat);
+
+      document.getElementById('modal-category').textContent = `${cat.emoji} ${cat.name}${task.sub ? ' · ' + task.sub : ''}`;
+      document.getElementById('modal-title').textContent = task.title;
+      
+      // Описание
+      const descEl = document.getElementById('modal-desc');
+      if (task.desc && task.desc.trim()) {
+        descEl.textContent = task.desc;
+        document.getElementById('modal-desc-wrapper').classList.remove('hidden');
+      } else {
+        document.getElementById('modal-desc-wrapper').classList.add('hidden');
+      }
+
+      // Дедлайн
+      const deadlineBox = document.getElementById('modal-deadline-box');
+      if (task.deadline && !task.done) {
+        deadlineBox.classList.remove('hidden');
+        document.getElementById('modal-deadline').textContent = `Срок выполнения: ${task.deadline}`;
+      } else {
+        deadlineBox.classList.add('hidden');
+      }
+
+      // Рендер пошагового чеклиста
+      renderModalChecklist(task);
+
+      // Кнопка статуса
+      updateModalBtnState(task.done);
+
+      // Показ шторки
+      document.getElementById('modal-overlay').classList.remove('opacity-0', 'pointer-events-none');
+      document.getElementById('bottom-sheet').classList.remove('closed');
+    }
+
+    // Рендер и интерактивность пошагового чеклиста
+    function renderModalChecklist(task) {
+      const wrapper = document.getElementById('modal-checklist-wrapper');
+      const container = document.getElementById('modal-checklist');
+      const progressText = document.getElementById('checklist-progress-text');
+      const progressBar = document.getElementById('checklist-progress-bar');
+      const banner = document.getElementById('checklist-complete-banner');
+
+      container.innerHTML = '';
+
+      if (!task.checklist || task.checklist.length === 0) {
+        wrapper.classList.add('hidden');
+        return;
+      }
+
+      wrapper.classList.remove('hidden');
+      if (!checkedSteps[task.id]) checkedSteps[task.id] = [];
+
+      const total = task.checklist.length;
+      const doneCount = checkedSteps[task.id].length;
+      const pct = Math.round((doneCount / total) * 100);
+
+      progressText.textContent = `${doneCount} из ${total} (${pct}%)`;
+      progressBar.style.width = `${pct}%`;
+
+      if (doneCount === total && total > 0) {
+        banner.classList.remove('hidden');
+        banner.innerHTML = `<span>🎉</span> <span>Все микрошаги закрыты! Задача автоматически завершена!</span>`;
+      } else {
+        banner.classList.add('hidden');
+      }
+
+      task.checklist.forEach((stepText, idx) => {
+        const isChecked = checkedSteps[task.id].includes(idx);
+        const itemDiv = document.createElement('div');
+        itemDiv.className = `p-2.5 rounded-xl border transition-all flex items-start gap-3 cursor-pointer select-none ${
+          isChecked 
+            ? 'bg-emerald-950/20 border-emerald-500/30 text-slate-400' 
+            : 'bg-[#090d16]/60 border-border/60 hover:border-slate-500/50 text-slate-200'
+        }`;
+        itemDiv.onclick = () => toggleStep(task.id, idx);
+
+        itemDiv.innerHTML = `
+          <div class="mt-0.5 w-4 h-4 rounded border flex items-center justify-center transition-all ${
+            isChecked 
+              ? 'bg-emerald-500 border-emerald-400 text-slate-950 font-bold text-xs' 
+              : 'border-slate-600 bg-slate-800/80 text-transparent'
+          }">
+            ✓
+          </div>
+          <div class="flex-1 text-xs leading-relaxed ${isChecked ? 'line-through text-slate-400' : 'text-slate-200'}">
+            ${stepText}
+          </div>
+        `;
+        container.appendChild(itemDiv);
+      });
+    }
+
+    function toggleStep(taskId, stepIdx) {
+      if (!checkedSteps[taskId]) checkedSteps[taskId] = [];
+      const index = checkedSteps[taskId].indexOf(stepIdx);
+      if (index > -1) {
+        checkedSteps[taskId].splice(index, 1);
+      } else {
+        checkedSteps[taskId].push(stepIdx);
+      }
+      saveStepsState();
+      
+      const task = tasks.find(t => t.id === taskId);
+      if (task) {
+        const total = (task.checklist || []).length;
+        const doneCount = checkedSteps[taskId].length;
+
+        // Автозавершение: при 100% шагов автоматом завершаем задачу
+        if (total > 0 && doneCount === total && !task.done) {
+          task.done = true;
+          saveTasksState();
+        } else if (total > 0 && doneCount < total && task.done) {
+          // Если сняли шаг с выполненной задачи — возвращаем её в работу
+          task.done = false;
+          saveTasksState();
+        }
+
+        renderModalChecklist(task);
+        updateModalBtnState(task.done);
+        renderCategories();
+        renderTasks();
+      }
+    }
+
+    function updateModalBtnState(isDone) {
+      const btn = document.getElementById('modal-toggle-btn');
+      if (isDone) {
+        btn.className = 'flex-1 py-3 px-4 rounded-xl font-bold text-sm bg-slate-800 text-slate-300 hover:bg-slate-700 border border-border flex items-center justify-center gap-2';
+        btn.innerHTML = '<span>Вернуть в работу</span>';
+      } else {
+        btn.className = 'flex-1 py-3 px-4 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2';
+        btn.innerHTML = '<span>✓ Завершить задачу полностью</span>';
+      }
+    }
+
+    function toggleCurrentTaskDone() {
+      if (!currentModalTaskId) return;
+      toggleTaskDone(currentModalTaskId);
+      const task = tasks.find(t => t.id === currentModalTaskId);
+      updateModalBtnState(task.done);
+      setTimeout(closeDrawer, 200);
+    }
+
+    function closeDrawer() {
+      document.getElementById('modal-overlay').classList.add('opacity-0', 'pointer-events-none');
+      document.getElementById('bottom-sheet').classList.add('closed');
+      currentModalTaskId = null;
+    }
+
+    document.getElementById('modal-overlay').onclick = closeDrawer;
+
+    
+    // Логика создания новых задач
+    let selectedNewTaskCat = 'work';
+    const SUB_PRESETS = {
+      cars: ['Volvo S60 (2007)', 'ВАЗ-2121 «Нива» (1983)', 'ВАЗ-2101 «Копейка» (1979)'],
+      dacha: ['Дела на даче', 'Хозблок (Спринт 2027)'],
+      work: ['Основная работа / CMO', 'Воронка откликов'],
+      prime: ['ДС Клиник', 'Prime Lead Агентство']
+    };
+
+    function renderNewTaskCatChips() {
+      const container = document.getElementById('new-task-cat-chips');
+      if (!container) return;
+      container.innerHTML = '';
+
+      CATEGORIES.forEach(cat => {
+        const isSelected = selectedNewTaskCat === cat.id;
+        const chip = document.createElement('div');
+        chip.className = `p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all flex items-center gap-2 select-none ${
+          isSelected 
+            ? 'bg-blue-600 border-blue-400 text-white shadow-md shadow-blue-600/20' 
+            : 'bg-[#090d16]/80 border-border text-slate-300 hover:border-slate-500'
+        }`;
+        chip.onclick = () => selectNewTaskCat(cat.id);
+        chip.innerHTML = `<span>${cat.emoji}</span> <span class="truncate">${cat.name}</span>`;
+        container.appendChild(chip);
+      });
+
+      renderSubPresets();
+    }
+
+    function selectNewTaskCat(catId) {
+      selectedNewTaskCat = catId;
+      renderNewTaskCatChips();
+    }
+
+    function renderSubPresets() {
+      const presetsContainer = document.getElementById('new-task-sub-presets');
+      if (!presetsContainer) return;
+      presetsContainer.innerHTML = '';
+
+      const presets = SUB_PRESETS[selectedNewTaskCat] || [];
+      if (presets.length === 0) {
+        presetsContainer.classList.add('hidden');
+        return;
+      }
+
+      presetsContainer.classList.remove('hidden');
+      presets.forEach(p => {
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded-lg transition-all';
+        pill.textContent = p;
+        pill.onclick = () => {
+          document.getElementById('new-task-sub').value = p;
+        };
+        presetsContainer.appendChild(pill);
+      });
+    }
+
+    function openNewTaskDrawer() {
+      // Предвыбираем активную категорию или работу
+      if (activeFilter !== 'all') {
+        selectedNewTaskCat = activeFilter;
+      }
+      renderNewTaskCatChips();
+      
+      document.getElementById('new-task-overlay').classList.remove('opacity-0', 'pointer-events-none');
+      document.getElementById('new-task-sheet').classList.remove('closed');
+      
+      setTimeout(() => {
+        const input = document.getElementById('new-task-title');
+        if (input) input.focus();
+      }, 150);
+    }
+
+    function closeNewTaskDrawer() {
+      document.getElementById('new-task-overlay').classList.add('opacity-0', 'pointer-events-none');
+      document.getElementById('new-task-sheet').classList.add('closed');
+      
+      // Сброс полей
+      document.getElementById('new-task-title').value = '';
+      document.getElementById('new-task-sub').value = '';
+      document.getElementById('new-task-deadline').value = '';
+      document.getElementById('new-task-desc').value = '';
+      document.getElementById('new-task-steps').value = '';
+    }
+
+    document.getElementById('new-task-overlay').onclick = closeNewTaskDrawer;
+
+    function showToast(text, icon = '✓') {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-icon').textContent = icon;
+      document.getElementById('toast-text').textContent = text;
+      
+      toast.classList.remove('opacity-0', '-translate-y-4');
+      toast.classList.add('opacity-100', 'translate-y-0');
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', '-translate-y-4');
+        toast.classList.remove('opacity-100', 'translate-y-0');
+      }, 2500);
+    }
+
+    function createNewTask() {
+      const titleInput = document.getElementById('new-task-title');
+      const title = titleInput.value.trim();
+      if (!title) {
+        showToast('Введите название задачи!', '⚠️');
+        titleInput.focus();
+        return;
+      }
+
+      const sub = document.getElementById('new-task-sub').value.trim() || null;
+      const deadline = document.getElementById('new-task-deadline').value.trim() || null;
+      const desc = document.getElementById('new-task-desc').value.trim();
+      const rawSteps = document.getElementById('new-task-steps').value.trim();
+
+      const checklist = rawSteps 
+        ? rawSteps.split('\n')
+            .map(s => s.trim().replace(/^[-*•]\s*/, '').replace(/^шаг\s*\d+:\s*/i, ''))
+            .filter(Boolean)
+        : [];
+
+      const newTask = {
+        id: 't_user_' + Date.now(),
+        cat: selectedNewTaskCat,
+        sub: sub,
+        title: title,
+        done: false,
+        deadline: deadline,
+        desc: desc,
+        checklist: checklist
+      };
+
+      tasks.unshift(newTask);
+      saveTasksState();
+      
+      renderCategories();
+      renderTasks();
+      closeNewTaskDrawer();
+      showToast('Задача успешно добавлена!');
+
+      // Переключаемся на раздел созданной задачи
+      filterByCategory(selectedNewTaskCat);
+    }
+
+    
+    // Логика блокировки PIN-кодом
+    let currentPinInput = '';
+    const SAVED_PIN_KEY = 'vladimir_pin_code_v1';
+    const SESSION_UNLOCKED_KEY = 'vladimir_session_unlocked_v1';
+
+    function initPinLock() {
+      const pinScreen = document.getElementById('pin-screen');
+      const isSessionUnlocked = sessionStorage.getItem(SESSION_UNLOCKED_KEY) === 'true';
+      const savedPin = localStorage.getItem(SAVED_PIN_KEY);
+
+      if (isSessionUnlocked) {
+        pinScreen.style.display = 'none';
+        return;
+      }
+
+      if (!savedPin) {
+        document.getElementById('pin-subtitle').textContent = 'Придумайте 4 цифры PIN для входа';
+      } else {
+        document.getElementById('pin-subtitle').textContent = 'Введите 4-значный PIN-код';
+      }
+      updatePinDots();
+    }
+
+    function updatePinDots(isError = false) {
+      const dots = document.querySelectorAll('.pin-dot');
+      dots.forEach((dot, idx) => {
+        dot.className = 'pin-dot w-3.5 h-3.5 rounded-full border-2 transition-all';
+        if (isError) {
+          dot.classList.add('border-rose-500', 'bg-rose-500');
+        } else if (idx < currentPinInput.length) {
+          dot.classList.add('border-blue-400', 'bg-blue-500', 'shadow-sm', 'shadow-blue-500/50');
+        } else {
+          dot.classList.add('border-slate-600');
+        }
+      });
+    }
+
+    function pressPin(digit) {
+      if (currentPinInput.length >= 4) return;
+      currentPinInput += digit;
+      updatePinDots();
+
+      if (currentPinInput.length === 4) {
+        setTimeout(verifyOrSetPin, 100);
+      }
+    }
+
+    function deletePin() {
+      if (currentPinInput.length > 0) {
+        currentPinInput = currentPinInput.slice(0, -1);
+        updatePinDots();
+      }
+    }
+
+    function verifyOrSetPin() {
+      const savedPin = localStorage.getItem(SAVED_PIN_KEY);
+      const pinScreen = document.getElementById('pin-screen');
+
+      // Если PIN еще не был задан — устанавливаем введенный
+      if (!savedPin) {
+        localStorage.setItem(SAVED_PIN_KEY, currentPinInput);
+        sessionStorage.setItem(SESSION_UNLOCKED_KEY, 'true');
+        showToast('PIN-код сохранен!', '🔒');
+        unlockApp();
+        return;
+      }
+
+      // Проверка существующего PIN
+      if (currentPinInput === savedPin) {
+        sessionStorage.setItem(SESSION_UNLOCKED_KEY, 'true');
+        unlockApp();
+      } else {
+        // Ошибка ввода
+        updatePinDots(true);
+        showToast('Неверный PIN-код', '❌');
+        setTimeout(() => {
+          currentPinInput = '';
+          updatePinDots();
+        }, 500);
+      }
+    }
+
+    function unlockApp() {
+      const pinScreen = document.getElementById('pin-screen');
+      pinScreen.classList.add('opacity-0', 'pointer-events-none');
+      setTimeout(() => {
+        pinScreen.style.display = 'none';
+      }, 300);
+    }
+
+    function resetPinOnDevice() {
+      if (confirm('Сбросить PIN-код на этом устройстве?')) {
+        localStorage.removeItem(SAVED_PIN_KEY);
+        sessionStorage.removeItem(SESSION_UNLOCKED_KEY);
+        currentPinInput = '';
+        initPinLock();
+        document.getElementById('pin-screen').style.display = 'flex';
+        document.getElementById('pin-screen').classList.remove('opacity-0', 'pointer-events-none');
+      }
+    }
+
+    // Инициализируем блокировку на старте
+    initPinLock();
+
+    // Первоначальная загрузка из tasks.json с обходом кэша
+    fetch('tasks.json?t=' + Date.now())
+      .then(res => res.json())
+      .then(cloudTasks => {
+        if (Array.isArray(cloudTasks) && cloudTasks.length > 0) {
+          tasks = cloudTasks;
+          saveTasksState();
+          renderCategories();
+          renderTasks();
+          document.getElementById('sync-status').textContent = 'Синхронизировано из TASKS.md';
+        }
+      })
+      .catch(err => {
+        console.log('Загрузка из сохраненного состояния');
+        try {
+          const local = localStorage.getItem('vladimir_tasks_state_v2');
+          if (local) tasks = JSON.parse(local);
+        } catch(e) {}
+        renderCategories();
+        renderTasks();
+      });
+  </script>
+</body>
+</html>
