@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Генплан участка у реки Сок — 2D Визуализация</title>
+  <style>
+    :root {
+      --bg-color: #1a1e24;
+      --card-bg: #242b35;
+      --text-main: #f0f4f8;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-green: #4ade80;
+      --accent-warn: #fbbf24;
+      --accent-danger: #f87171;
+      --border: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    header {
+      background: #111418;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .title-group h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .title-group p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .btn:hover {
+      background: #2d3748;
+      border-color: #4a5568;
+    }
+
+    .btn.active {
+      background: #0284c7;
+      border-color: #38bdf8;
+      color: #fff;
+    }
+
+    .btn-group {
+      display: flex;
+      background: #111418;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px;
+    }
+
+    .btn-group .btn {
+      border: none;
+      border-radius: 4px;
+      padding: 4px 8px;
+    }
+
+    .main-container {
+      display: flex;
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .canvas-container {
+      flex: 1;
+      height: 100%;
+      position: relative;
+      background: #161b22;
+      overflow: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    svg#plan-svg {
+      box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+      border-radius: 8px;
+      background: #1e2530;
+      max-height: 94vh;
+      width: auto;
+    }
+
+    .sidebar {
+      width: 360px;
+      background: #111418;
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      z-index: 5;
+    }
+
+    .sidebar-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sidebar-content {
+      padding: 16px;
+      overflow-y: auto;
+      flex: 1;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge-stone { background: #7c2d12; color: #fed7aa; }
+    .badge-pome { background: #14532d; color: #bbf7d0; }
+    .badge-grape { background: #581c87; color: #e9d5ff; }
+    .badge-berry { background: #831843; color: #fbcfe8; }
+    .badge-exotic { background: #713f12; color: #fef08a; }
+    .badge-struct { background: #1e293b; color: #cbd5e1; }
+
+    .legend-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .tree-node {
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    .tree-node:hover {
+      filter: brightness(1.3);
+    }
+
+    .tree-node:hover circle {
+      stroke: #fff;
+      stroke-width: 2.5px;
+    }
+
+    /* Tooltip */
+    #tooltip {
+      position: absolute;
+      display: none;
+      background: rgba(17, 20, 24, 0.95);
+      border: 1px solid var(--accent);
+      padding: 8px 12px;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 12px;
+      pointer-events: none;
+      z-index: 100;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+
+    /* Layers visibility */
+    .layer-canopy { transition: opacity 0.3s ease; }
+    .layer-shadows { transition: opacity 0.3s ease; }
+    .layer-risks { transition: opacity 0.3s ease; }
+    .layer-snip { transition: opacity 0.3s ease; }
+    .layer-water { transition: opacity 0.3s ease; }
+
+    .hidden { opacity: 0; pointer-events: none; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="title-group">
+      <h1>🏡 Генплан участка у реки Сок <span style="font-size: 12px; font-weight: normal; color: #38bdf8; background: #0c4a6e; padding: 2px 8px; border-radius: 12px;">24.5 сотки | Дом 7×10 м</span></h1>
+      <p>Самарская область, пойма р. Сок • Масштаб 1:1 (сетка 5 м) • Интерактивный аудит посадок</p>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn active" id="toggle-canopy" onclick="toggleLayer('canopy')">
+        🌳 Взрослые кроны
+      </button>
+
+      <!-- Солнечный симулятор: Слайдер и анимация -->
+      <div style="display: flex; align-items: center; gap: 10px; background: #111418; border: 1px solid var(--border); padding: 4px 12px; border-radius: 8px;">
+        <button class="btn" id="play-btn" onclick="togglePlayDay()" style="background: #0284c7; border-color: #38bdf8; font-weight: 700;">
+          ▶ День (Анимация)
+        </button>
+
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 600;">
+            <span style="color: #fbbf24;">☀️ Время: <span id="time-display" style="color: #fff; font-weight: bold; font-size: 13px;">13:00</span></span>
+            <span id="sun-details" style="color: #94a3b8; font-size: 10px;">Юг • Высота 60°</span>
+          </div>
+          <input type="range" id="sun-slider" min="6" max="21" step="0.25" value="13" oninput="onSliderChange(this.value)" style="width: 170px; accent-color: #fbbf24; cursor: pointer;">
+        </div>
+      </div>
+
+      <button class="btn active" id="toggle-risks" onclick="toggleLayer('risks')">
+        ⚠️ Зоны рисков
+      </button>
+
+      <button class="btn" id="toggle-snip" onclick="toggleLayer('snip')">
+        📏 СНиП (Межа 1-3м)
+      </button>
+
+      <button class="btn" id="toggle-water" onclick="toggleLayer('water')">
+        💧 СанПиН (Вода)
+      </button>
+
+      <button class="btn" onclick="resetZoom()">🔍 Сброс зума</button>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <div class="canvas-container" id="canvas-container">
+      <svg id="plan-svg" viewBox="-120 -50 940 1550" width="820" height="1350" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <!-- Gradients -->
+          <linearGradient id="river-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#0284c7" stop-opacity="0.9"/>
+            <stop offset="100%" stop-color="#0369a1" stop-opacity="0.7"/>
+          </linearGradient>
+
+          <linearGradient id="forest-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#14532d" stop-opacity="0.85"/>
+            <stop offset="100%" stop-color="#166534" stop-opacity="0.4"/>
+          </linearGradient>
+
+          <linearGradient id="house-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#b45309"/>
+            <stop offset="100%" stop-color="#78350f"/>
+          </linearGradient>
+
+          <!-- Shadow Filter -->
+          <filter id="shadow-blur" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="6"/>
+          </filter>
+
+          <!-- Patterns -->
+          <pattern id="grid-5m" width="80" height="80" patternUnits="userSpaceOnUse">
+            <path d="M 80 0 L 0 0 0 80" fill="none" stroke="#2d3748" stroke-width="1" stroke-dasharray="2,4"/>
+          </pattern>
+        </defs>
+
+        <!-- ================= ФОН И СЕТКА ================= -->
+        <!-- Фоновый участок (35м х 70м -> 560px x 1120px; 1м = 16px) -->
+        <rect x="0" y="80" width="560" height="1140" fill="#1b232d" stroke="#475569" stroke-width="3"/>
+        <rect x="0" y="80" width="560" height="1140" fill="url(#grid-5m)"/>
+
+        <!-- ================= РЕКА СОК И ПРИБРЕЖНЫЙ ЛЕС ================= -->
+        <!-- Река Сок вверху -->
+        <path d="M -100 -20 Q 200 40 680 0 L 680 80 Q 200 70 -100 60 Z" fill="url(#river-grad)"/>
+        <text x="250" y="35" fill="#e0f2fe" font-size="22" font-weight="bold" letter-spacing="8">РЕКА СОК</text>
+        <path d="M -80 15 Q 180 50 640 25" fill="none" stroke="#7dd3fc" stroke-width="2" stroke-dasharray="20,10" opacity="0.6"/>
+
+        <!-- Полоса прибрежного леса (15-20 метров -> ~280px) -->
+        <g id="forest-belt">
+          <rect x="0" y="80" width="560" height="240" fill="url(#forest-grad)"/>
+          <text x="180" y="160" fill="#86efac" font-size="16" font-weight="600" opacity="0.4" letter-spacing="4">ПРИБРЕЖНЫЙ ЛЕС (15–20 МЕТРОВ)</text>
+          <text x="210" y="185" fill="#86efac" font-size="11" opacity="0.4">Естественный ветролом от северных ветров</text>
+
+          <!-- Лесные деревья символично -->
+          <circle cx="50" cy="130" r="30" fill="#15803d" opacity="0.5"/>
+          <circle cx="120" cy="110" r="35" fill="#166534" opacity="0.6"/>
+          <circle cx="210" cy="125" r="40" fill="#14532d" opacity="0.5"/>
+          <circle cx="320" cy="115" r="38" fill="#15803d" opacity="0.6"/>
+          <circle cx="430" cy="135" r="32" fill="#166534" opacity="0.5"/>
+          <circle cx="510" cy="110" r="36" fill="#14532d" opacity="0.6"/>
+        </g>
+
+        <!-- ================= СОСЕДСКИЕ ДОМА (ВНЕ МЕЖИ) ================= -->
+        <!-- ДОМ ЛЕНЫ (слева) -->
+        <g transform="translate(-105, 800)">
+          <rect x="0" y="0" width="85" height="180" fill="#334155" stroke="#64748b" stroke-width="2" rx="4"/>
+          <text x="42" y="95" fill="#cbd5e1" font-size="15" font-weight="bold" text-anchor="middle" transform="rotate(-90 42 95)">ДОМ ЛЕНЫ</text>
+        </g>
+
+        <!-- ДОМ СЕРГЕЯ (справа) -->
+        <g transform="translate(585, 820)">
+          <rect x="0" y="0" width="85" height="160" fill="#334155" stroke="#64748b" stroke-width="2" rx="4"/>
+          <text x="42" y="85" fill="#cbd5e1" font-size="15" font-weight="bold" text-anchor="middle" transform="rotate(90 42 85)">ДОМ СЕРГЕЯ</text>
+        </g>
+
+        <!-- ================= СЛОЙ: ДИНАМИЧЕСКИЕ ТЕНИ ================= -->
+        <g id="layer-shadows" class="layer-shadows">
+          <!-- Тень от прибрежного леса (высота 15м) -->
+          <polygon id="forest-shadow" points="0,320 560,320 560,400 0,400" fill="#000" opacity="0.32" filter="url(#shadow-blur)"/>
+
+          <!-- Тень от ДОМА 7х10м (высота 6.5м) -->
+          <polygon id="house-shadow" points="320,850 480,850 480,750 320,750" fill="#000" opacity="0.45" filter="url(#shadow-blur)"/>
+          
+          <!-- Тень от дома Лены (высота 6.5м) -->
+          <polygon id="lena-shadow" points="0,780 0,980 50,940 50,750" fill="#000" opacity="0.35" filter="url(#shadow-blur)"/>
+
+          <!-- Тень от дома Сергея (высота 6.5м) -->
+          <polygon id="sergey-shadow" points="560,820 560,980 520,950 520,790" fill="#000" opacity="0.35" filter="url(#shadow-blur)"/>
+
+          <!-- Динамические тени от крон деревьев -->
+          <g id="tree-shadows-group" fill="#000" opacity="0.3" filter="url(#shadow-blur)"></g>
+        </g>
+
+        <!-- ================= СЛОЙ: ЗОНЫ СНиП И ОХРАННЫЕ ЛИНИИ ================= -->
+        <g id="layer-snip" class="layer-snip hidden">
+          <!-- 1м от забора (кустарники, теплицы) -->
+          <rect x="16" y="96" width="528" height="1108" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="4,4"/>
+          <text x="25" y="1120" fill="#38bdf8" font-size="10">Отступ 1м (кустарники, теплицы)</text>
+
+          <!-- 2м от забора (среднерослые деревья - сливы, вишни) -->
+          <rect x="32" y="112" width="496" height="1076" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="6,4"/>
+          <text x="40" y="1100" fill="#fbbf24" font-size="10">Отступ 2м (сливы, вишни, персики)</text>
+
+          <!-- 3м от забора (высокорослые - яблони, черешни, шелковицы) -->
+          <rect x="48" y="128" width="464" height="1044" fill="none" stroke="#f87171" stroke-width="1.5" stroke-dasharray="8,4"/>
+          <text x="55" y="1080" fill="#f87171" font-size="10">Отступ 3м (яблони, груши, черешни)</text>
+        </g>
+
+        <!-- ================= СЛОЙ: САНПИН И ВОДООХРАНА ================= -->
+        <g id="layer-water" class="layer-water hidden">
+          <!-- Радиус безопасности колодца (25м -> 400px) -->
+          <circle cx="280" cy="715" r="380" fill="#0284c7" fill-opacity="0.08" stroke="#38bdf8" stroke-width="2" stroke-dasharray="8,8"/>
+          <text x="280" y="360" fill="#38bdf8" font-size="11" text-anchor="middle">Зона санитарного разрыва колодца (25 м)</text>
+
+          <!-- Дистанция Колодец - Септик (линия связи) -->
+          <line x1="280" y1="715" x2="260" y2="1190" stroke="#f43f5e" stroke-width="2" stroke-dasharray="6,4"/>
+          <rect x="235" y="940" width="80" height="22" fill="#1e293b" rx="4"/>
+          <text x="275" y="955" fill="#f43f5e" font-size="11" font-weight="bold" text-anchor="middle">29.5 метров</text>
+        </g>
+
+        <!-- ================= СЛОЙ: ПОДСВЕТКА РИСКОВ ================= -->
+        <g id="layer-risks" class="layer-risks">
+          <!-- Риск 1: Шелковица в центре (корневая зона 8м) -->
+          <circle cx="230" cy="385" r="110" fill="#ef4444" fill-opacity="0.15" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="230" y="275" fill="#fca5a5" font-size="11" font-weight="bold" text-anchor="middle">⚠️ Корневая агрессия шелковицы (R=7-8м)</text>
+
+          <!-- Риск 2: Войлочная вишня (очаг монилиоза) -->
+          <circle cx="40" cy="890" r="60" fill="#f59e0b" fill-opacity="0.2" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="110" y="915" fill="#fde68a" font-size="10" font-weight="bold">⚠️ Очаг монилиоза</text>
+
+          <!-- Риск 3: Затенение винограда яблонями -->
+          <rect x="150" y="470" width="220" height="230" fill="#eab308" fill-opacity="0.08" stroke="#eab308" stroke-width="1.5" stroke-dasharray="6,4"/>
+          <text x="260" y="460" fill="#fef08a" font-size="11" font-weight="bold" text-anchor="middle">⚠️ Световой коридор винограда</text>
+        </g>
+
+        <!-- ================= СЛОЙ: ВЗРОСЛЫЕ КРОНЫ (ЧЕРЕЗ 7 ЛЕТ) ================= -->
+        <g id="layer-canopy" class="layer-canopy">
+          <!-- Кроны яблонь и груш (R=40-45px -> 2.5-3м радиус) -->
+          <circle cx="360" cy="420" r="42" fill="#22c55e" fill-opacity="0.35" stroke="#16a34a" stroke-width="1.5"/>
+          <circle cx="360" cy="490" r="42" fill="#22c55e" fill-opacity="0.35" stroke="#16a34a" stroke-width="1.5"/>
+          <circle cx="430" cy="540" r="48" fill="#22c55e" fill-opacity="0.35" stroke="#16a34a" stroke-width="1.5"/>
+          <circle cx="420" cy="620" r="40" fill="#22c55e" fill-opacity="0.35" stroke="#16a34a" stroke-width="1.5"/>
+          <circle cx="430" cy="700" r="40" fill="#22c55e" fill-opacity="0.35" stroke="#16a34a" stroke-width="1.5"/>
+
+          <!-- Кроны черешен (R=40px) -->
+          <circle cx="150" cy="420" r="40" fill="#ea580c" fill-opacity="0.3" stroke="#c2410c" stroke-width="1.5"/>
+          <circle cx="210" cy="420" r="38" fill="#ea580c" fill-opacity="0.3" stroke="#c2410c" stroke-width="1.5"/>
+          <circle cx="150" cy="470" r="42" fill="#ea580c" fill-opacity="0.3" stroke="#c2410c" stroke-width="1.5"/>
+
+          <!-- Кроны шелковиц (R=55px -> 3.5м) -->
+          <circle cx="210" cy="350" r="50" fill="#9333ea" fill-opacity="0.35" stroke="#7e22ce" stroke-width="1.5"/>
+          <circle cx="280" cy="350" r="50" fill="#9333ea" fill-opacity="0.35" stroke="#7e22ce" stroke-width="1.5"/>
+          <circle cx="280" cy="400" r="50" fill="#9333ea" fill-opacity="0.35" stroke="#7e22ce" stroke-width="1.5"/>
+
+          <!-- Кроны слив и абрикосов (R=30-35px -> 2-2.2м) -->
+          <!-- Сливы левого ряда -->
+          <circle cx="40" cy="420" r="32" fill="#9333ea" fill-opacity="0.3" stroke="#7e22ce" stroke-width="1"/>
+          <circle cx="40" cy="470" r="32" fill="#9333ea" fill-opacity="0.3" stroke="#7e22ce" stroke-width="1"/>
+          <circle cx="40" cy="520" r="32" fill="#9333ea" fill-opacity="0.3" stroke="#7e22ce" stroke-width="1"/>
+          <circle cx="40" cy="570" r="32" fill="#9333ea" fill-opacity="0.3" stroke="#7e22ce" stroke-width="1"/>
+          <circle cx="40" cy="620" r="32" fill="#9333ea" fill-opacity="0.3" stroke="#7e22ce" stroke-width="1"/>
+          <circle cx="40" cy="670" r="32" fill="#9333ea" fill-opacity="0.3" stroke="#7e22ce" stroke-width="1"/>
+          <circle cx="40" cy="810" r="30" fill="#e11d48" fill-opacity="0.3" stroke="#be123c" stroke-width="1"/>
+          <circle cx="40" cy="850" r="30" fill="#e11d48" fill-opacity="0.3" stroke="#be123c" stroke-width="1"/>
+          <circle cx="40" cy="890" r="28" fill="#e11d48" fill-opacity="0.3" stroke="#be123c" stroke-width="1"/>
+          <circle cx="40" cy="940" r="32" fill="#9333ea" fill-opacity="0.3" stroke="#7e22ce" stroke-width="1"/>
+          <circle cx="40" cy="990" r="32" fill="#9333ea" fill-opacity="0.3" stroke="#7e22ce" stroke-width="1"/>
+        </g>
+
+        <!-- ================= ПОСТРОЙКИ И ОБЪЕКТЫ ================= -->
+        <!-- ДОМ 7х10 м (В масштабе 1м=16px: 7м=112px, 10м=160px; батя нарисовал ~130х250 с верандой) -->
+        <g id="house-obj" class="tree-node" onclick="showInfo('house')" transform="translate(320, 850)">
+          <rect x="0" y="0" width="160" height="230" fill="url(#house-grad)" stroke="#d97706" stroke-width="3" rx="6"/>
+          <!-- Крыша/планировка -->
+          <line x1="0" y1="0" x2="160" y2="230" stroke="#78350f" stroke-width="2"/>
+          <line x1="160" y1="0" x2="0" y2="230" stroke="#78350f" stroke-width="2"/>
+          <rect x="25" y="30" width="110" height="170" fill="#451a03" stroke="#92400e" stroke-width="2" rx="4"/>
+          <text x="80" y="125" fill="#fef3c7" font-size="20" font-weight="900" text-anchor="middle">ДОМ</text>
+          <text x="80" y="148" fill="#fde68a" font-size="13" font-weight="bold" text-anchor="middle">7 × 10 м</text>
+        </g>
+
+        <!-- Грядка голубики над домом -->
+        <g id="blueberries" class="tree-node" onclick="showInfo('blueberry')" transform="translate(320, 815)">
+          <rect x="0" y="0" width="160" height="25" fill="#1e3a8a" stroke="#3b82f6" stroke-width="2" rx="3"/>
+          <text x="80" y="17" fill="#bfdbfe" font-size="12" font-weight="bold" text-anchor="middle">ГОЛУБИКА (КИСЛЫЙ ТОРФ)</text>
+        </g>
+
+        <!-- ТЕПЛИЦА 1 (вертикальная, левый нижний угол) -->
+        <g id="greenhouse-1" class="tree-node" onclick="showInfo('greenhouse1')" transform="translate(20, 1030)">
+          <rect x="0" y="0" width="45" height="110" fill="#0f766e" stroke="#2dd4bf" stroke-width="2" rx="4"/>
+          <text x="22" y="60" fill="#ccfbf1" font-size="12" font-weight="bold" text-anchor="middle" transform="rotate(-90 22 60)">ТЕПЛИЦА 1</text>
+        </g>
+
+        <!-- ТЕПЛИЦА 2 (горизонтальная внизу) -->
+        <g id="greenhouse-2" class="tree-node" onclick="showInfo('greenhouse2')" transform="translate(90, 1070)">
+          <rect x="0" y="0" width="140" height="60" fill="#0f766e" stroke="#2dd4bf" stroke-width="2" rx="4"/>
+          <text x="70" y="35" fill="#ccfbf1" font-size="13" font-weight="bold" text-anchor="middle">ТЕПЛИЦА 2</text>
+        </g>
+
+        <!-- КОЛОДЕЦ (синий кружок) -->
+        <g id="well-obj" class="tree-node" onclick="showInfo('well')" transform="translate(280, 715)">
+          <circle cx="0" cy="0" r="16" fill="#0284c7" stroke="#38bdf8" stroke-width="3"/>
+          <circle cx="0" cy="0" r="8" fill="#bae6fd"/>
+          <text x="26" y="5" fill="#38bdf8" font-size="12" font-weight="bold">КОЛОДЕЦ</text>
+        </g>
+
+        <!-- СЕПТИК (красный кружок внизу) -->
+        <g id="septic-obj" class="tree-node" onclick="showInfo('septic')" transform="translate(260, 1190)">
+          <circle cx="0" cy="0" r="16" fill="#dc2626" stroke="#f87171" stroke-width="3"/>
+          <circle cx="0" cy="0" r="8" fill="#fecaca"/>
+          <text x="26" y="5" fill="#f87171" font-size="12" font-weight="bold">СЕПТИК</text>
+        </g>
+
+        <!-- ================= ВИНОГРАДНИК (ШПАЛЕРЫ) ================= -->
+        <g id="vineyard">
+          <!-- Ряд 1 (левый) -->
+          <g class="tree-node" onclick="showInfo('vine_row1')" transform="translate(170, 480)">
+            <rect x="0" y="0" width="18" height="230" fill="#581c87" stroke="#c084fc" stroke-width="2" rx="4"/>
+            <text x="9" y="115" fill="#f3e8ff" font-size="12" font-weight="bold" text-anchor="middle" transform="rotate(-90 9 115)">РЯД 1: Столетие • ХЗ</text>
+          </g>
+
+          <!-- Ряд 2 (средний) -->
+          <g class="tree-node" onclick="showInfo('vine_row2')" transform="translate(210, 480)">
+            <rect x="0" y="0" width="18" height="230" fill="#581c87" stroke="#c084fc" stroke-width="2" rx="4"/>
+            <text x="9" y="115" fill="#f3e8ff" font-size="12" font-weight="bold" text-anchor="middle" transform="rotate(-90 9 115)">РЯД 2: Дарья • Один • Цимус</text>
+          </g>
+
+          <!-- Ряд 3 (правый) -->
+          <g class="tree-node" onclick="showInfo('vine_row3')" transform="translate(250, 480)">
+            <rect x="0" y="0" width="18" height="230" fill="#581c87" stroke="#c084fc" stroke-width="2" rx="4"/>
+            <text x="9" y="115" fill="#f3e8ff" font-size="12" font-weight="bold" text-anchor="middle" transform="rotate(-90 9 115)">РЯД 3: Юпитер • Банановый • Шардоне</text>
+          </g>
+        </g>
+
+        <!-- ================= ТЕПЛОЛЮБИВЫЕ (ПЕРСИКИ / НЕКТАРИНЫ) ================= -->
+        <g id="peaches-box" transform="translate(290, 680)">
+          <!-- Каркас укрытия -->
+          <rect x="-10" y="0" width="150" height="55" fill="none" stroke="#ca8a04" stroke-width="2" stroke-dasharray="4,4"/>
+          <text x="65" y="-5" fill="#fef08a" font-size="10" text-anchor="middle">Зимний каркас-укрытие</text>
+        </g>
+
+        <!-- ================= ТОЧКИ ДЕРЕВЬЕВ И КУСТАРНИКОВ ================= -->
+        <!-- 1. Верхний ряд (Опушка леса / Ягодники вдоль реки) -->
+        <g id="berry-row">
+          <g class="tree-node" onclick="showInfo('kryzh_krymskiy')" transform="translate(70, 310)"><circle cx="0" cy="0" r="8" fill="#ec4899" stroke="#fff" stroke-width="1.5"/><text x="0" y="-12" fill="#fbcfe8" font-size="9" text-anchor="middle">Крымский пол.</text></g>
+          <g class="tree-node" onclick="showInfo('kryzh_chernomor')" transform="translate(110, 310)"><circle cx="0" cy="0" r="8" fill="#ec4899" stroke="#fff" stroke-width="1.5"/><text x="0" y="-12" fill="#fbcfe8" font-size="9" text-anchor="middle">Черноморский</text></g>
+          <g class="tree-node" onclick="showInfo('kryzh_ksenia')" transform="translate(190, 310)"><circle cx="0" cy="0" r="7" fill="#ec4899" stroke="#fff" stroke-width="1.5"/><text x="0" y="-12" fill="#fbcfe8" font-size="9" text-anchor="middle">Ксения</text></g>
+          <g class="tree-node" onclick="showInfo('kryzh_pax')" transform="translate(225, 310)"><circle cx="0" cy="0" r="7" fill="#ec4899" stroke="#fff" stroke-width="1.5"/><text x="0" y="-12" fill="#fbcfe8" font-size="9" text-anchor="middle">Пакс</text></g>
+          <g class="tree-node" onclick="showInfo('kryzh_monstruoza')" transform="translate(260, 310)"><circle cx="0" cy="0" r="7" fill="#ec4899" stroke="#fff" stroke-width="1.5"/><text x="0" y="-12" fill="#fbcfe8" font-size="9" text-anchor="middle">Монструоза</text></g>
+          <g class="tree-node" onclick="showInfo('smorod_sokrovishche')" transform="translate(320, 310)"><circle cx="0" cy="0" r="7" fill="#3b82f6" stroke="#fff" stroke-width="1.5"/><text x="0" y="-12" fill="#bfdbfe" font-size="9" text-anchor="middle">ЧС Сокровище</text></g>
+          <g class="tree-node" onclick="showInfo('smorod_yadrenaya')" transform="translate(380, 310)"><circle cx="0" cy="0" r="7" fill="#3b82f6" stroke="#fff" stroke-width="1.5"/><text x="0" y="-12" fill="#bfdbfe" font-size="9" text-anchor="middle">ЧС Ядреная</text></g>
+          <g class="tree-node" onclick="showInfo('smorod_giganta')" transform="translate(430, 310)"><circle cx="0" cy="0" r="7" fill="#ef4444" stroke="#fff" stroke-width="1.5"/><text x="0" y="-12" fill="#fca5a5" font-size="9" text-anchor="middle">КС Гиганта</text></g>
+        </g>
+
+        <!-- 2. Шелковицы и Шарафуга (Верхний центр) -->
+        <g id="mulberry-group">
+          <g class="tree-node" onclick="showInfo('sharafuga_top')" transform="translate(130, 350)"><circle cx="0" cy="0" r="11" fill="#a855f7" stroke="#fff" stroke-width="2"/><text x="0" y="20" fill="#e9d5ff" font-size="10" text-anchor="middle">Шарафуга</text></g>
+          <g class="tree-node" onclick="showInfo('shelk_belaya')" transform="translate(210, 350)"><circle cx="0" cy="0" r="12" fill="#f3e8ff" stroke="#7e22ce" stroke-width="2.5"/><text x="0" y="20" fill="#f3e8ff" font-size="10" text-anchor="middle">Шелковица бел.</text></g>
+          <g class="tree-node" onclick="showInfo('shelk_rozovaya')" transform="translate(280, 350)"><circle cx="0" cy="0" r="12" fill="#f472b6" stroke="#7e22ce" stroke-width="2.5"/><text x="0" y="20" fill="#fbcfe8" font-size="10" text-anchor="middle">Шелк. Смоленская</text></g>
+          <g class="tree-node" onclick="showInfo('shelk_chernaya')" transform="translate(280, 400)"><circle cx="0" cy="0" r="12" fill="#3b0764" stroke="#c084fc" stroke-width="2.5"/><text x="0" y="20" fill="#e9d5ff" font-size="10" text-anchor="middle">Шелк. Стамбульская</text></g>
+        </g>
+
+        <!-- 3. Черешни (слева от винограда) -->
+        <g id="sweet-cherries">
+          <g class="tree-node" onclick="showInfo('cheresh_bychie')" transform="translate(150, 420)"><circle cx="0" cy="0" r="11" fill="#dc2626" stroke="#fff" stroke-width="2"/><text x="0" y="-15" fill="#fca5a5" font-size="10" text-anchor="middle">Бычье сердце</text></g>
+          <g class="tree-node" onclick="showInfo('cheresh_iput')" transform="translate(210, 420)"><circle cx="0" cy="0" r="11" fill="#16a34a" stroke="#fff" stroke-width="2"/><text x="0" y="-15" fill="#86efac" font-size="10" text-anchor="middle">Ипуть (Опылитель)</text></g>
+          <g class="tree-node" onclick="showInfo('cheresh_gigant_red')" transform="translate(150, 470)"><circle cx="0" cy="0" r="11" fill="#dc2626" stroke="#fff" stroke-width="2"/><text x="0" y="20" fill="#fca5a5" font-size="10" text-anchor="middle">Гигант Ред</text></g>
+          <g class="tree-node" onclick="showInfo('abrikos_tsunami_1')" transform="translate(210, 460)"><circle cx="0" cy="0" r="10" fill="#f97316" stroke="#fff" stroke-width="2"/><text x="0" y="20" fill="#fed7aa" font-size="10" text-anchor="middle">Абрикос Цунами</text></g>
+        </g>
+
+        <!-- 4. Левый ряд у забора Лены (Вишни, Дюки, Сливы) -->
+        <g id="fence-left-row">
+          <g class="tree-node" onclick="showInfo('vish_morozovoy')" transform="translate(40, 420)"><circle cx="0" cy="0" r="10" fill="#b91c1c" stroke="#fff" stroke-width="2"/><text x="18" y="4" fill="#fca5a5" font-size="10">Десертная Морозовой</text></g>
+          <g class="tree-node" onclick="showInfo('vish_podbelskaya')" transform="translate(40, 470)"><circle cx="0" cy="0" r="10" fill="#b91c1c" stroke="#fff" stroke-width="2"/><text x="18" y="4" fill="#fca5a5" font-size="10">Подбельская</text></g>
+          <g class="tree-node" onclick="showInfo('sliv_bella_royal')" transform="translate(40, 520)"><circle cx="0" cy="0" r="10" fill="#7e22ce" stroke="#fff" stroke-width="2"/><text x="18" y="4" fill="#e9d5ff" font-size="10">Белла Роял (Шарафуга)</text></g>
+          <g class="tree-node" onclick="showInfo('sliv_tochesan')" transform="translate(40, 570)"><circle cx="0" cy="0" r="10" fill="#7e22ce" stroke="#fff" stroke-width="2"/><text x="18" y="4" fill="#e9d5ff" font-size="10">ТоЧеСан (дипл)</text></g>
+          <g class="tree-node" onclick="showInfo('sliv_bayron_gold')" transform="translate(40, 620)"><circle cx="0" cy="0" r="10" fill="#eab308" stroke="#fff" stroke-width="2"/><text x="18" y="4" fill="#fef08a" font-size="10">Байрон Голд (дипл)</text></g>
+          <g class="tree-node" onclick="showInfo('sliv_berbok')" transform="translate(40, 670)"><circle cx="0" cy="0" r="10" fill="#7e22ce" stroke="#fff" stroke-width="2"/><text x="18" y="4" fill="#e9d5ff" font-size="10">Бербок Гигант (дипл)</text></g>
+
+          <!-- Нижний левый сегмент -->
+          <g class="tree-node" onclick="showInfo('duk_chudo')" transform="translate(40, 810)"><circle cx="0" cy="0" r="10" fill="#b91c1c" stroke="#fff" stroke-width="2"/><text x="18" y="4" fill="#fca5a5" font-size="10">Дюк Чудо-вишня</text></g>
+          <g class="tree-node" onclick="showInfo('vish_morozovka')" transform="translate(40, 850)"><circle cx="0" cy="0" r="10" fill="#b91c1c" stroke="#fff" stroke-width="2"/><text x="18" y="4" fill="#fca5a5" font-size="10">Морозовка</text></g>
+          <g class="tree-node" onclick="showInfo('vish_voylok')" transform="translate(40, 890)"><circle cx="0" cy="0" r="9" fill="#ef4444" stroke="#fbbf24" stroke-width="2.5"/><text x="18" y="4" fill="#fde68a" font-size="10">Войлочная (ВНИМАНИЕ!)</text></g>
+          <g class="tree-node" onclick="showInfo('sliv_top_gigant')" transform="translate(40, 940)"><circle cx="0" cy="0" r="10" fill="#7e22ce" stroke="#fff" stroke-width="2"/><text x="18" y="4" fill="#e9d5ff" font-size="10">Топ Гигант (дипл)</text></g>
+          <g class="tree-node" onclick="showInfo('sliv_starking')" transform="translate(40, 990)"><circle cx="0" cy="0" r="10" fill="#7e22ce" stroke="#fff" stroke-width="2"/><text x="18" y="4" fill="#e9d5ff" font-size="10">Старкинг Делишес</text></g>
+        </g>
+
+        <!-- 5. Правая сторона (Яблони, Груши, Абрикосы) -->
+        <g id="right-orchard">
+          <g class="tree-node" onclick="showInfo('yabl_berkut')" transform="translate(360, 420)"><circle cx="0" cy="0" r="12" fill="#15803d" stroke="#fff" stroke-width="2"/><text x="18" y="4" fill="#86efac" font-size="10">Беркутовское (зимнее)</text></g>
+          <g class="tree-node" onclick="showInfo('yabl_mantet')" transform="translate(360, 490)"><circle cx="0" cy="0" r="12" fill="#15803d" stroke="#fff" stroke-width="2"/><text x="18" y="4" fill="#86efac" font-size="10">Мантет (летнее)</text></g>
+          <g class="tree-node" onclick="showInfo('yabl_zhigul')" transform="translate(430, 540)"><circle cx="0" cy="0" r="13" fill="#15803d" stroke="#fff" stroke-width="2"/><text x="18" y="4" fill="#86efac" font-size="10">Жигулевское (осеннее)</text></g>
+
+          <g class="tree-node" onclick="showInfo('grusha_talgarka')" transform="translate(420, 470)"><circle cx="0" cy="0" r="11" fill="#84cc16" stroke="#fff" stroke-width="2"/><text x="18" y="4" fill="#d9f99d" font-size="10">Груша Талгарка</text></g>
+          <g class="tree-node" onclick="showInfo('grusha_bryansk')" transform="translate(420, 580)"><circle cx="0" cy="0" r="11" fill="#84cc16" stroke="#fff" stroke-width="2"/><text x="18" y="4" fill="#d9f99d" font-size="10">Брянская красавица</text></g>
+          <g class="tree-node" onclick="showInfo('grusha_starkrim')" transform="translate(430, 640)"><circle cx="0" cy="0" r="11" fill="#84cc16" stroke="#fff" stroke-width="2"/><text x="18" y="4" fill="#d9f99d" font-size="10">Старкримсон</text></g>
+          <g class="tree-node" onclick="showInfo('grusha_kirgiz')" transform="translate(500, 460)"><circle cx="0" cy="0" r="11" fill="#84cc16" stroke="#fff" stroke-width="2"/><text x="18" y="4" fill="#d9f99d" font-size="10">Киргизская</text></g>
+
+          <!-- Абрикосы справа -->
+          <g class="tree-node" onclick="showInfo('abrikos_harkot')" transform="translate(370, 550)"><circle cx="0" cy="0" r="10" fill="#f97316" stroke="#fff" stroke-width="2"/><text x="16" y="4" fill="#fed7aa" font-size="10">Харкот</text></g>
+          <g class="tree-node" onclick="showInfo('abrikos_dikiy')" transform="translate(330, 580)"><circle cx="0" cy="0" r="9" fill="#ea580c" stroke="#fff" stroke-width="2"/><text x="-16" y="4" fill="#fed7aa" font-size="10" text-anchor="end">Дикий (опылитель)</text></g>
+          <g class="tree-node" onclick="showInfo('abrikos_sardoniks')" transform="translate(340, 640)"><circle cx="0" cy="0" r="10" fill="#f97316" stroke="#fff" stroke-width="2"/><text x="-16" y="4" fill="#fed7aa" font-size="10" text-anchor="end">Сардоникс</text></g>
+          <g class="tree-node" onclick="showInfo('abrikos_polesskiy')" transform="translate(380, 630)"><circle cx="0" cy="0" r="10" fill="#f97316" stroke="#fff" stroke-width="2"/><text x="16" y="4" fill="#fed7aa" font-size="10">Полесский кр.</text></g>
+          <g class="tree-node" onclick="showInfo('abrikos_perle')" transform="translate(510, 690)"><circle cx="0" cy="0" r="10" fill="#f97316" stroke="#fff" stroke-width="2"/><text x="16" y="4" fill="#fed7aa" font-size="10">Перле Кот</text></g>
+          <g class="tree-node" onclick="showInfo('abrikos_tsunami_2')" transform="translate(510, 640)"><circle cx="0" cy="0" r="10" fill="#f97316" stroke="#fff" stroke-width="2"/><text x="16" y="4" fill="#fed7aa" font-size="10">Цунами</text></g>
+        </g>
+
+        <!-- 6. Персики и нектарины (у колодца) -->
+        <g id="peaches-nectarines">
+          <g class="tree-node" onclick="showInfo('nekt_rebus')" transform="translate(310, 700)"><circle cx="0" cy="0" r="9" fill="#f59e0b" stroke="#fff" stroke-width="2"/><text x="0" y="-12" fill="#fef08a" font-size="9" text-anchor="middle">Ребус 028</text></g>
+          <g class="tree-node" onclick="showInfo('persik_sankrest')" transform="translate(360, 720)"><circle cx="0" cy="0" r="9" fill="#fb923c" stroke="#fff" stroke-width="2"/><text x="0" y="18" fill="#fed7aa" font-size="9" text-anchor="middle">Санкрест</text></g>
+          <g class="tree-node" onclick="showInfo('persik_moskva')" transform="translate(370, 700)"><circle cx="0" cy="0" r="9" fill="#fb923c" stroke="#fff" stroke-width="2"/><text x="0" y="-12" fill="#fed7aa" font-size="9" text-anchor="middle">Кр. Москва</text></g>
+          <g class="tree-node" onclick="showInfo('nekt_fantaziya')" transform="translate(420, 700)"><circle cx="0" cy="0" r="9" fill="#f59e0b" stroke="#fff" stroke-width="2"/><text x="0" y="-12" fill="#fef08a" font-size="9" text-anchor="middle">Фантазия</text></g>
+        </g>
+
+        <!-- 7. Входная зона: Жасмин -->
+        <g id="jasmine-group">
+          <g class="tree-node" onclick="showInfo('zhasmin_burya')" transform="translate(260, 1130)"><circle cx="0" cy="0" r="8" fill="#f8fafc" stroke="#38bdf8" stroke-width="2"/><text x="16" y="4" fill="#e2e8f0" font-size="10">Жасмин Снежная буря</text></g>
+          <g class="tree-node" onclick="showInfo('zhasmin_manto')" transform="translate(260, 1160)"><circle cx="0" cy="0" r="8" fill="#f8fafc" stroke="#38bdf8" stroke-width="2"/><text x="16" y="4" fill="#e2e8f0" font-size="10">Жасмин Манто Д'эрмин</text></g>
+        </g>
+
+        <!-- Линейка масштаба (внизу справа) -->
+        <g transform="translate(380, 1230)">
+          <rect x="0" y="0" width="160" height="24" fill="#0f172a" rx="4" stroke="#334155"/>
+          <line x1="10" y1="12" x2="150" y2="12" stroke="#fff" stroke-width="2"/>
+          <line x1="10" y1="6" x2="10" y2="18" stroke="#fff" stroke-width="2"/>
+          <line x1="80" y1="8" x2="80" y2="16" stroke="#fff" stroke-width="1.5"/>
+          <line x1="150" y1="6" x2="150" y2="18" stroke="#fff" stroke-width="2"/>
+          <text x="80" y="22" fill="#94a3b8" font-size="10" text-anchor="middle">Масштаб: 10 метров (160 px)</text>
+        </g>
+
+      </svg>
+
+      <div id="tooltip"></div>
+    </div>
+
+    <!-- БОКОВАЯ ПАНЕЛЬ ИНФОРМАЦИИ -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <span>📋 Карточка насаждения</span>
+        <span id="selected-badge" class="badge badge-struct">ИНФО</span>
+      </div>
+
+      <div class="sidebar-content" id="sidebar-content">
+        <div class="card">
+          <div class="card-title">👋 Добро пожаловать!</div>
+          <p>Кликните на любое дерево, куст, шпалеру винограда или постройку на плане слева, чтобы увидеть подробную агрономическую справку, сроки созревания, опылители и предупреждения по уходу.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🎨 Условные обозначения:</div>
+          <div class="legend-grid">
+            <div class="legend-item"><div class="legend-color" style="background: #dc2626;"></div> Черешня / Вишня</div>
+            <div class="legend-item"><div class="legend-color" style="background: #7e22ce;"></div> Слива / Дюк</div>
+            <div class="legend-item"><div class="legend-color" style="background: #15803d;"></div> Яблоня</div>
+            <div class="legend-item"><div class="legend-color" style="background: #84cc16;"></div> Груша</div>
+            <div class="legend-item"><div class="legend-color" style="background: #f97316;"></div> Абрикос</div>
+            <div class="legend-item"><div class="legend-color" style="background: #f59e0b;"></div> Персик / Нектарин</div>
+            <div class="legend-item"><div class="legend-color" style="background: #581c87;"></div> Виноградник</div>
+            <div class="legend-item"><div class="legend-color" style="background: #3b0764;"></div> Шелковица</div>
+            <div class="legend-item"><div class="legend-color" style="background: #ec4899;"></div> Крыжовник</div>
+            <div class="legend-item"><div class="legend-color" style="background: #0284c7;"></div> Колодец</div>
+            <div class="legend-item"><div class="legend-color" style="background: #dc2626;"></div> Септик</div>
+            <div class="legend-item"><div class="legend-color" style="background: #b45309;"></div> Дом 7×10 м</div>
+          </div>
+        </div>
+
+        <div class="card" style="border-left: 4px solid var(--accent-warn);">
+          <div class="card-title" style="color: var(--accent-warn);">⚡ Главные агро-акценты:</div>
+          <p style="font-size: 12px; margin-bottom: 6px;">1. <b>Шелковица:</b> Обязательно держать обрезкой чашей до 3м, чтобы не задушила виноград.</p>
+          <p style="font-size: 12px; margin-bottom: 6px;">2. <b>Войлочная вишня:</b> Убрать подальше от абрикосов из-за монилиоза.</p>
+          <p style="font-size: 12px;">3. <b>Виноград:</b> Держать проветривание междурядий от затенения яблонями.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // База данных по всем насаждениям и объектам
+    const DB = {
+      house: {
+        title: "Жилой дом (7 × 10 м)",
+        badge: "ПОСТРОЙКА",
+        badgeClass: "badge-struct",
+        desc: "Основной капитальный дом усадьбы. Габариты 7х10 метров. Расположен в 50 метрах от уреза воды реки Сок. Тень от дома падает на север/северо-восток.",
+        tips: "На крыше с северной стороны (над грядкой голубики) обязательно установить снегозадержатели, чтобы лавина мокрого снега не переломала кусты голубики."
+      },
+      blueberry: {
+        title: "Голубика (полоса вдоль стены дома)",
+        badge: "ЯГОДНИК",
+        badgeClass: "badge-berry",
+        desc: "Вересковая культура. Требует строго кислой почвы (pH 3.5–4.5), состоящей из верхового рыжего торфа, хвойного опада и серы.",
+        tips: "⚠️ ОБЯЗАТЕЛЬНО: Изолировать посадочную траншею плотной полиэтиленовой пленкой (200 мкм) или геомембраной от фундамента и садового грунта, иначе бетон раскислит почву и голубика погибнет от хлороза. Полив только подкисленной водой."
+      },
+      well: {
+        title: "Колодец (синий кружок)",
+        badge: "ВОДОСНАБЖЕНИЕ",
+        badgeClass: "badge-struct",
+        desc: "Основной водозаборный узел сада. Расположен в 29.5 метрах от септика, что полностью соответствует строгим санитарным нормам (СанПиН требует не менее 20–25 м).",
+        tips: "Удобно для полива: колодец находится в центре посадок винограда, персиков и теплиц. Рекомендуется сдать воду на анализ по железу и солям жесткости (типичная проблема волжской поймы)."
+      },
+      septic: {
+        title: "Септик (красный кружок)",
+        badge: "КАНАЛИЗАЦИЯ",
+        badgeClass: "badge-struct",
+        desc: "Локальное очистное сооружение. Расположено в максимально удаленной точке от реки Сок (>55 метров) и в 29.5 м от колодца. Имеет удобный подъезд со стороны въезда.",
+        tips: "Идеальное санитарное размещение. Риск загрязнения реки Сок и колодца сведен к абсолютному нулю."
+      },
+      greenhouse1: {
+        title: "Теплица 1 (вертикальная)",
+        badge: "ПОСТРОЙКА",
+        badgeClass: "badge-struct",
+        desc: "Расположена в нижнем левом углу вдоль межи соседа (Дом Лены).",
+        tips: "Отступ от межи должен быть не менее 1.0 метра (по СП 53.13330). Сток воды с крыши должен быть организован на собственный участок."
+      },
+      greenhouse2: {
+        title: "Теплица 2 (горизонтальная)",
+        badge: "ПОСТРОЙКА",
+        badgeClass: "badge-struct",
+        desc: "Основная овощная теплица в южной прогреваемой зоне участка.",
+        tips: "Ориентация восток-запад обеспечивает превосходный прогрев томатов и перцев в течение всего светового дня."
+      },
+      vine_row1: {
+        title: "Виноград: Ряд 1 (Кишмиш Столетие)",
+        badge: "ВИНОГРАДНИК",
+        badgeClass: "badge-grape",
+        desc: "Сорта: Кишмиш Столетие (бессемянный, один из самых вкусных сортов в мире) + 3 резервных куста (ХЗ). Шпалера вертикальная.",
+        tips: "⚠️ Слева от этого ряда растут черешни и шелковицы. Следите, чтобы кроны деревьев не нависали над лозой. Винограду требуется не менее 8 часов прямого солнца в день."
+      },
+      vine_row2: {
+        title: "Виноград: Ряд 2 (Дарья, Один, Цимус)",
+        badge: "ВИНОГРАДНИК",
+        badgeClass: "badge-grape",
+        desc: "Элитные столовые сорта: Цимус (мускат с цитронным вкусом, ультраранний), Дарья (ранний, янтарный, хрустящий), Один (Амурский прорыв — сверхморозостойкий).",
+        tips: "Цимус и Дарья — шедевры селекции. Требуют своевременных профилактических обработок от оидиума и милдью (Тиовит Джет, Квадрис) до и после цветения."
+      },
+      vine_row3: {
+        title: "Виноград: Ряд 3 (Юпитер, Банановый, Шардоне)",
+        badge: "ВИНОГРАДНИК",
+        badgeClass: "badge-grape",
+        desc: "Юпитер (знаменитый морозостойкий бессемянный кишмиш из США, держит до -27°C), Банановый (оригинальный десертный сорт), Шардоне (классика белого вина).",
+        tips: "Юпитер можно пускать на беседку или высокий козырек — не вымерзает в умеренные зимы Самары. Шардоне требует нормировки гроздями для набора сахара."
+      },
+      cheresh_iput: {
+        title: "Черешня Ипуть (Ключевой опылитель)",
+        badge: "КОСТОЧКОВЫЕ",
+        badgeClass: "badge-stone",
+        desc: "Один из лучших сортов черешни для Средней полосы. Плоды темно-красные, сладкие, до 6-8 г. Высокая зимостойкость.",
+        tips: "🌟 ГЛАВНАЯ РОЛЬ: Ипуть является универсальным опылителем для сортов Бычье сердце, Ревна, Тютчевка и Гигант Ред. Без нее Бычье сердце давало бы мизерный урожай."
+      },
+      cheresh_bychie: {
+        title: "Черешня Бычье сердце",
+        badge: "КОСТОЧКОВЫЕ",
+        badgeClass: "badge-stone",
+        desc: "Крупноплодная черешня (ягоды до 10-12 г), темно-бордовые, плотные, десертного вкуса. Самобесплодна.",
+        tips: "Опыляется рядом сидящей черешней Ипуть. Нуждается в формировке со снижением кроны, иначе уйдет на высоту 5-6 метров."
+      },
+      vish_voylok: {
+        title: "Вишня Войлочная Десертная (ЗОНА ВЫСОКОГО РИСКА)",
+        badge: "КОСТОЧКОВЫЕ",
+        badgeClass: "badge-stone",
+        desc: "Кустарниковая вишня с опушенными листьями и сладкими нежными ягодами.",
+        tips: "🔴 КРИТИЧЕСКИЙ РИСК: Войлочная вишня — главный природный накопитель монилиального ожога (Monilia laxa). Споры весной заражают абрикосы и персики. РЕКОМЕНДАЦИЯ: Заменить на сорт Дюка (вишне-черешни) или ежегодно жестко обрабатывать фунгицидом Хорус по розовому бутону!"
+      },
+      shelk_belaya: {
+        title: "Шелковица белая (Тутовник)",
+        badge: "ЭКЗОТЫ",
+        badgeClass: "badge-exotic",
+        desc: "Мощное дерево с белыми медовыми ягодами. Корневая система поверхностная, крайне агрессивная.",
+        tips: "⚠️ РИСК: Забирает влагу и питание в радиусе 7 метров. Вести строго чашевидной обрезкой со снижением роста до 2.5–3 м, либо перенести на границу леса к реке Сок."
+      },
+      shelk_chernaya: {
+        title: "Шелковица Стамбульская черная",
+        badge: "ЭКЗОТЫ",
+        badgeClass: "badge-exotic",
+        desc: "Крупноплодный южный сорт с крупными кисло-сладкими черными соплодиями. Сок сильно красится.",
+        tips: "Не сажать вплотную к дорожкам и отмостке дома — осыпающиеся ягоды окрашивают плитку и обувь."
+      },
+      abrikos_tsunami_1: {
+        title: "Абрикос Цунами",
+        badge: "КОСТОЧКОВЫЕ",
+        badgeClass: "badge-stone",
+        desc: "Французский ранний сорт. Плоды ярко-оранжевые с малиновым румянцем, до 70-90 г. Высочайшие вкусовые качества.",
+        tips: "Отлично переопыляется с сидящим рядом диким абрикосом и сортом Харкот. Защищать от возвратных весенних заморозков во время цветения."
+      },
+      abrikos_dikiy: {
+        title: "Абрикос дикий (Жердель / Сеянец)",
+        badge: "ОПЫЛИТЕЛЬ",
+        badgeClass: "badge-stone",
+        desc: "Дикорастущий выносливый абрикос. Плоды некрупные, но цветет обильно и морозостоек.",
+        tips: "🌟 ОЧЕНЬ ГРАМОТНО: Батя посадил его как естественный донор пыльцы для сортовых капризных абрикосов (Харкот, Сардоникс, Цунами). Гарантирует завязываемость плодов даже в холодную весну."
+      },
+      nekt_rebus: {
+        title: "Нектарин Ребус 028 + Персики",
+        badge: "УКРЫВНЫЕ",
+        badgeClass: "badge-exotic",
+        desc: "Сорта: Нектарин Ребус 028, Фантазия, Персик Санкрест, Красная Москва. Выращиваются в стланцевой или кустовой форме под зимнее укрытие.",
+        tips: "Самарская область требует сухого зимнего укрытия (короба из пеноплекса или спанбонд по дугам плотностью 60 г/м² в 2 слоя). Зона у колодца идеальна для полива теплой отстоянной водой."
+      },
+      yabl_zhigul: {
+        title: "Яблоня Жигулевское",
+        badge: "СЕМЕЧКОВЫЕ",
+        badgeClass: "badge-pome",
+        desc: "Легендарный сорт Самарской селекции (Кедрин С.П., Жигулевские горы). Осенний срок созревания, крупные полосатые кисло-сладкие яблоки.",
+        tips: "Сильнорослое дерево! Если не ограничивать крону, разрастается до 5-6 метров в диаметре. Требует весенней снижающей обрезки."
+      },
+      sliv_bayron_gold: {
+        title: "Слива диплоидная Байрон Голд",
+        badge: "КОСТОЧКОВЫЕ",
+        badgeClass: "badge-stone",
+        desc: "Американский сорт диплоидной сливы. Плоды гигантские (до 100-120 г), золотисто-желтые, тающие во рту.",
+        tips: "Диплоидные сливы цветут раньше обычных домашних слив. Опыляются соседними сортами: ТоЧеСан, Бербок, Топ Гигант и Шарафугой."
+      }
+    };
+
+    function showInfo(key) {
+      const item = DB[key];
+      if (!item) return;
+
+      document.getElementById('selected-badge').textContent = item.badge;
+      document.getElementById('selected-badge').className = 'badge ' + item.badgeClass;
+
+      const content = `
+        <div class="card">
+          <div class="card-title">${item.title}</div>
+          <p>${item.desc}</p>
+        </div>
+        <div class="card" style="border-left: 4px solid #38bdf8;">
+          <div class="card-title" style="color: #38bdf8;">💡 Совет агронома:</div>
+          <p style="font-size: 12.5px;">${item.tips}</p>
+        </div>
+      `;
+      document.getElementById('sidebar-content').innerHTML = content;
+    }
+
+    // Управление слоями
+    function toggleLayer(layerName) {
+      const el = document.getElementById('layer-' + layerName);
+      const btn = document.getElementById('toggle-' + layerName);
+      if (!el || !btn) return;
+
+      if (el.classList.contains('hidden')) {
+        el.classList.remove('hidden');
+        btn.classList.add('active');
+      } else {
+        el.classList.add('hidden');
+        btn.classList.remove('active');
+      }
+    }
+
+    // ================= СОЛНЕЧНЫЙ ДВИЖОК (Самара, 53.2° с.ш., лето) =================
+    let isPlaying = false;
+    let playInterval = null;
+
+    // Список ключевых деревьев для динамических теней [cx, cy, r, height_m]
+    const TREES = [
+      [360, 420, 20, 4.0], // Беркутовское
+      [360, 490, 20, 4.0], // Мантет
+      [430, 540, 22, 4.5], // Жигулевское
+      [420, 470, 18, 3.5], // Талгарка
+      [420, 580, 18, 3.5], // Брянская
+      [430, 640, 18, 3.5], // Старкримсон
+      [150, 420, 20, 4.0], // Бычье сердце
+      [210, 420, 20, 4.0], // Ипуть
+      [150, 470, 20, 4.0], // Гигант Ред
+      [210, 350, 24, 5.0], // Шелковица бел.
+      [280, 350, 24, 5.0], // Шелковица роз.
+      [280, 400, 24, 5.0], // Шелковица черн.
+      [370, 550, 16, 3.0], // Харкот
+      [380, 630, 16, 3.0], // Полесский
+      [40, 520, 16, 3.0],  // Белла Роял
+      [40, 570, 16, 3.0],  // ТоЧеСан
+      [40, 620, 16, 3.0],  // Байрон Голд
+      [40, 810, 16, 3.0],  // Чудо-вишня
+      [40, 940, 16, 3.0]   // Топ Гигант
+    ];
+
+    function calculateSun(hour) {
+      // t от 0 (06:00) до 1 (21:00)
+      const t = (hour - 6) / 15;
+      // Азимут: 06:00 -> 65° (северо-восток), 13:30 -> 180° (юг), 21:00 -> 295° (северо-запад)
+      const azimuthDeg = 65 + t * 230;
+      const azimuthRad = azimuthDeg * Math.PI / 180;
+
+      // Элевация (высота над горизонтом, пик 61° в 13:30)
+      const distFromNoon = Math.abs(hour - 13.5) / 7.5;
+      const elevDeg = Math.max(5, 61 * (1 - distFromNoon * distFromNoon));
+      const elevRad = elevDeg * Math.PI / 180;
+
+      // Коэффициент длины тени
+      const shadowScale = 1 / Math.tan(elevRad);
+
+      // Вектор падения тени (Север = -Y, Юг = +Y, Восток = +X, Запад = -X)
+      // Солнце на азимуте: sun_x = sin(az), sun_y = -cos(az)
+      // Тень падает в противоположную сторону:
+      const dir_x = -Math.sin(azimuthRad);
+      const dir_y = Math.cos(azimuthRad);
+
+      return { azimuthDeg, elevDeg, shadowScale, dir_x, dir_y };
+    }
+
+    function updateSun(hour) {
+      const sun = calculateSun(hour);
+
+      // 1. Отображение времени и параметров солнца
+      const h = Math.floor(hour);
+      const m = Math.floor((hour - h) * 60);
+      const timeStr = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      document.getElementById('time-display').textContent = timeStr;
+      document.getElementById('sun-slider').value = hour;
+
+      let side = "Юг";
+      if (sun.azimuthDeg < 90) side = "СВ (Восход)";
+      else if (sun.azimuthDeg < 135) side = "Юго-Восток";
+      else if (sun.azimuthDeg < 225) side = "Юг (Полдень)";
+      else if (sun.azimuthDeg < 270) side = "Юго-Запад";
+      else side = "СЗ (Закат)";
+
+      document.getElementById('sun-details').textContent = `${side} • ${Math.round(sun.elevDeg)}°`;
+
+      // 2. Длина тени в пикселях на метр высоты (1м = 16px)
+      const pxM = 16;
+      const kX = sun.dir_x * sun.shadowScale * pxM;
+      const kY = sun.dir_y * sun.shadowScale * pxM;
+
+      // 3. Тень от ДОМА 7х10м (высота 6.5м)
+      // Дом: (320, 850) до (480, 1080)
+      const hx = kX * 6.5;
+      const hy = kY * 6.5;
+      const houseShadow = document.getElementById('house-shadow');
+      if (sun.dir_y < 0) { // Тень на север
+        houseShadow.setAttribute('points', `320,1080 320,850 ${320+hx},${850+hy} ${480+hx},${850+hy} 480,850 480,1080`);
+      } else { // Тень на юг (раннее утро / поздний вечер)
+        houseShadow.setAttribute('points', `320,850 320,1080 ${320+hx},${1080+hy} ${480+hx},${1080+hy} 480,1080 480,850`);
+      }
+
+      // 4. Тень от прибрежного леса (высота 14м)
+      const fx = kX * 14;
+      const fy = Math.max(0, kY * 14); // лес отбрасывает тень внутрь участка
+      const forestShadow = document.getElementById('forest-shadow');
+      forestShadow.setAttribute('points', `0,320 560,320 ${560+fx},${320+fy} ${0+fx},${320+fy}`);
+
+      // 5. Тень от дома Лены (слева)
+      const lx = kX * 6.5;
+      const ly = kY * 6.5;
+      const lenaShadow = document.getElementById('lena-shadow');
+      if (sun.dir_x > 0) { // Утром тень падает на участок
+        const reach = Math.min(160, Math.max(0, lx - 20));
+        lenaShadow.setAttribute('points', `0,780 0,980 ${reach},${980+ly*0.5} ${reach},${780+ly*0.5}`);
+        lenaShadow.setAttribute('opacity', '0.35');
+      } else {
+        lenaShadow.setAttribute('opacity', '0.05');
+      }
+
+      // 6. Тень от дома Сергея (справа)
+      const sergeyShadow = document.getElementById('sergey-shadow');
+      if (sun.dir_x < 0) { // Вечером тень падает на правый край
+        const reach = Math.min(150, Math.abs(lx));
+        sergeyShadow.setAttribute('points', `560,820 560,980 ${560-reach},${980+ly*0.5} ${560-reach},${820+ly*0.5}`);
+        sergeyShadow.setAttribute('opacity', '0.35');
+      } else {
+        sergeyShadow.setAttribute('opacity', '0.05');
+      }
+
+      // 7. Динамические тени от деревьев
+      const treeGroup = document.getElementById('tree-shadows-group');
+      let shadowsHtml = '';
+      TREES.forEach(t => {
+        const cx = t[0], cy = t[1], r = t[2], h = t[3];
+        const tx = kX * h;
+        const ty = kY * h;
+        // Тень в виде вытянутого эллипса/полигона
+        const shadowLen = Math.sqrt(tx*tx + ty*ty);
+        const angle = Math.atan2(ty, tx) * 180 / Math.PI;
+        shadowsHtml += `<ellipse cx="${cx + tx*0.5}" cy="${cy + ty*0.5}" rx="${shadowLen*0.6 + r*0.5}" ry="${r*0.6}" transform="rotate(${angle} ${cx + tx*0.5} ${cy + ty*0.5})" />`;
+      });
+      treeGroup.innerHTML = shadowsHtml;
+    }
+
+    function onSliderChange(val) {
+      if (isPlaying) togglePlayDay();
+      updateSun(parseFloat(val));
+    }
+
+    function togglePlayDay() {
+      const btn = document.getElementById('play-btn');
+      if (isPlaying) {
+        clearInterval(playInterval);
+        isPlaying = false;
+        btn.textContent = '▶ День (Анимация)';
+        btn.style.background = '#0284c7';
+      } else {
+        isPlaying = true;
+        btn.textContent = '⏸ Пауза';
+        btn.style.background = '#e11d48';
+
+        let currentHour = parseFloat(document.getElementById('sun-slider').value);
+        if (currentHour >= 21) currentHour = 6.0;
+
+        playInterval = setInterval(() => {
+          currentHour += 0.08; // шаг ~5 минут
+          if (currentHour > 21) {
+            currentHour = 6.0; // зацикливаем
+          }
+          updateSun(currentHour);
+        }, 40);
+      }
+    }
+
+    function resetZoom() {
+      const svg = document.getElementById('plan-svg');
+      svg.setAttribute('viewBox', '-120 -50 940 1550');
+    }
+
+    // Инициализация солнца в полдень (13:00)
+    updateSun(13.0);
+    showInfo('house');
+  </script>
+</body>
+</html>
