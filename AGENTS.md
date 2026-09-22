@@ -68,3 +68,13 @@
 
 ## 7. Инженерный учет толщины профилей при раскрое
 - 🔴 При расчете длин внутренних элементов каркаса (лаги пола, перемычки, прожилины) агент ОБЯЗАН вычитать фактическую ширину пересекающих профилей ($60$ мм, $40$ мм, $20$ мм), а не делить наружный габарит на глаз.
+
+---
+
+## 8. Протокол составления архитектурных промптов (Prompt Engineering Protocol)
+- 🔴 При генерации архитектурных концептов категорически запрещено полагаться на простое перечисление миллиметров без композиционной разметки.
+- 📐 **Обязательные инженерные якоря в промпте**:
+  1. **Композиционная сетка фасада (Grid Ratio)**: Строго указывать пропорцию долей фасада («Strict asymmetric 3:1 facade ratio: exactly 75% on the left is solid building, strictly 25% on the right is open alcove»).
+  2. **Геометрия и пропорция окон (Transom Ratio)**: Для технических окон обязательно указывать геометрический тип («narrow horizontal rectangular transom window, aspect ratio 1.7:1, width is double the height, NOT square, no residential curtains»).
+  3. **Ракурс и геометрия кровли (Roof Single-Slope Perspective)**: Использовать ракурс три четверти (`slight 3/4 architectural perspective`), чтобы исключить паразитные коньки двускатных крыш; прямо писать `single continuous flat inclined roof plane, monopitch shed roof, strictly NO gable, NO ridge, NO double-pitched roof`.
+  4. **Встроенные отрицательные ограничения (Negative Prompts)**: В теле промпта явно исключать паразитные элементы нейросети.
