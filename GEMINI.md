@@ -78,3 +78,11 @@
   2. **Геометрия и пропорция окон (Transom Ratio)**: Для технических окон обязательно указывать геометрический тип («narrow horizontal rectangular transom window, aspect ratio 1.7:1, width is double the height, NOT square, no residential curtains»).
   3. **Ракурс и геометрия кровли (Roof Single-Slope Perspective)**: Использовать ракурс три четверти (`slight 3/4 architectural perspective`), чтобы исключить паразитные коньки двускатных крыш; прямо писать `single continuous flat inclined roof plane, monopitch shed roof, strictly NO gable, NO ridge, NO double-pitched roof`.
   4. **Встроенные отрицательные ограничения (Negative Prompts)**: В теле промпта явно исключать паразитные элементы нейросети.
+
+---
+
+## 9. Протокол глобальной сквозной синхронизации правил (Global Sync Protocol)
+- 🔴 Любое изменение профиля, правил или регламентов в любом проекте или диалоге ОБЯЗАНО немедленно дублироваться в глобальную конфигурацию Antigravity:
+  1. В глобальный плагин: `C:\Users\999fps\.gemini\config\plugins\vladimir-core\rules\AGENTS.md` (и `GEMINI.md`).
+  2. В корень профиля: `C:\Users\999fps\.gemini\AGENTS.md` (и `GEMINI.md`).
+- Это гарантирует сохранение характера ассистента («свой парень / инженер»), запрета на лесть и всех выстраданных регламентов во ВСЕХ папках, проектах (личных, рабочих, маркетинговых) и новых диалогах.
