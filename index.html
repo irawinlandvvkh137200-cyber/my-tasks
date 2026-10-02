@@ -124,7 +124,7 @@
         </div>
         <div>
           <h1 class="text-base font-bold text-slate-100 leading-tight">Мой задачник</h1>
-          <div class="flex items-center gap-2 text-xs text-emerald-400 font-medium">
+          <div onclick="forceHardRefresh()" class="flex items-center gap-2 text-xs text-emerald-400 font-medium cursor-pointer active:opacity-70" title="Нажми для обновления">
             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             <span id="sync-status">Синхронизировано онлайн</span>
           </div>
@@ -135,6 +135,9 @@
         <button id="finance-summary-btn" onclick="openFinanceModal()" class="text-xs bg-emerald-500/15 hover:bg-emerald-500/25 active:scale-95 border border-emerald-500/30 px-2.5 py-1.5 rounded-xl text-emerald-300 font-semibold flex items-center gap-1.5 transition-all shadow-sm">
           <span>💰 Расходы:</span>
           <span id="header-total-cost" class="text-white font-bold">158.5k ₽</span>
+        </button>
+        <button id="hard-refresh-btn" onclick="forceHardRefresh()" class="text-xs bg-cardHover hover:bg-slate-700 active:scale-90 border border-border px-2.5 py-1.5 rounded-xl text-slate-300 hover:text-white font-semibold flex items-center gap-1 transition-all shadow-sm" title="Принудительно обновить">
+          <span id="refresh-icon" class="inline-block transition-transform duration-500">🔄</span>
         </button>
         <button id="reset-filter-btn" class="hidden text-xs bg-cardHover border border-border px-3 py-1.5 rounded-lg text-slate-300 hover:text-white transition-all">
           ← Все разделы
@@ -2459,6 +2462,27 @@
       sheet.classList.add('closed');
       document.body.classList.remove('modal-open');
     }
+
+    // Принудительный сброс мобильного кэша iOS PWA
+    window.forceHardRefresh = function() {
+      const icon = document.getElementById('refresh-icon');
+      if (icon) icon.classList.add('animate-spin');
+      showToast('Сбрасываю кэш и перезагружаю...', '🔄');
+
+      if (window.caches) {
+        caches.keys().then(names => Promise.all(names.map(name => caches.delete(name)))).catch(() => {});
+      }
+
+      try {
+        localStorage.removeItem('vladimir_tasks_state_v3');
+        localStorage.removeItem('vladimir_purchases_state_v1');
+      } catch(e) {}
+
+      setTimeout(() => {
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.location.replace(cleanUrl + '?v=' + Date.now());
+      }, 350);
+    };
 
     // Инициализируем блокировку на старте
     initPinLock();
