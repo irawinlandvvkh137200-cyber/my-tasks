@@ -1090,16 +1090,6 @@
         "note": "Пиломатериал для обустройства кессона до морозов"
       },
       {
-        "id": "p_10",
-        "cat": "dacha",
-        "title": "Скважинный адаптер 1\" латунь + труба ПНД 32",
-        "cost": 11500,
-        "month": "Октябрь",
-        "done": false,
-        "status": "planned",
-        "note": "Зимний ввод воды в дом ниже глубины промерзания (1.8 м)"
-      },
-      {
         "id": "p_11",
         "cat": "dacha",
         "title": "Обогреватель ТеплЭко 400 Вт + термореле",
@@ -1165,22 +1155,50 @@
       }
     }
 
-    // Умная загрузка покупок
+    let deletedPurchaseIds = [];
+    try {
+      deletedPurchaseIds = JSON.parse(localStorage.getItem('vladimir_deleted_purchases_v1') || '[]');
+    } catch(e) {
+      deletedPurchaseIds = [];
+    }
+
+    function saveDeletedPurchases() {
+      try {
+        localStorage.setItem('vladimir_deleted_purchases_v1', JSON.stringify(deletedPurchaseIds));
+      } catch(e) {}
+    }
+
+    // Умная загрузка покупок с защитой от воскрешения удаленных
     function loadPurchasesWithCache() {
       try {
         const saved = localStorage.getItem('vladimir_purchases_state_v1');
-        if (!saved) return JSON.parse(JSON.stringify(INITIAL_PURCHASES));
+        const basePurchases = INITIAL_PURCHASES.filter(p => !deletedPurchaseIds.includes(p.id));
+        if (!saved) return JSON.parse(JSON.stringify(basePurchases));
+
         const localP = JSON.parse(saved);
         const localStatusMap = new Map();
         localP.forEach(p => {
           if (p && p.id) localStatusMap.set(p.id, p.done);
         });
-        return INITIAL_PURCHASES.map(p => {
+
+        // Исключаем из локального кэша удаленные
+        const activeLocal = localP.filter(p => !deletedPurchaseIds.includes(p.id));
+
+        const result = basePurchases.map(p => {
           const isDone = localStatusMap.has(p.id) ? localStatusMap.get(p.id) : p.done;
           return { ...p, done: isDone };
         });
+
+        // Добавляем созданные пользователем на телефоне
+        activeLocal.forEach(p => {
+          if (!result.some(r => r.id === p.id)) {
+            result.push(p);
+          }
+        });
+
+        return result;
       } catch(e) {
-        return JSON.parse(JSON.stringify(INITIAL_PURCHASES));
+        return JSON.parse(JSON.stringify(INITIAL_PURCHASES.filter(p => !deletedPurchaseIds.includes(p.id))));
       }
     }
 
@@ -2177,6 +2195,10 @@
 
     function deletePurchase(pId) {
       if (!confirm('Удалить эту покупку из плана?')) return;
+      if (!deletedPurchaseIds.includes(pId)) {
+        deletedPurchaseIds.push(pId);
+        saveDeletedPurchases();
+      }
       purchases = purchases.filter(p => p.id !== pId);
       savePurchasesState();
       renderCategories();
@@ -2467,16 +2489,13 @@
     window.forceHardRefresh = function() {
       const icon = document.getElementById('refresh-icon');
       if (icon) icon.classList.add('animate-spin');
-      showToast('Сбрасываю кэш и перезагружаю...', '🔄');
+      showToast('Обновляю данные из облака...', '🔄');
 
       if (window.caches) {
         caches.keys().then(names => Promise.all(names.map(name => caches.delete(name)))).catch(() => {});
       }
 
-      try {
-        localStorage.removeItem('vladimir_tasks_state_v3');
-        localStorage.removeItem('vladimir_purchases_state_v1');
-      } catch(e) {}
+      // Безопасный сброс: НИКОГДА не затираем localStorage с удаленными покупками и пользовательскими записями!
 
       setTimeout(() => {
         const cleanUrl = window.location.origin + window.location.pathname;
@@ -2487,19 +2506,45 @@
     // Инициализируем блокировку на старте
     initPinLock();
 
-    // Загрузка tasks.json и purchases.json с обходом кэша
+    // Загрузка tasks.json и purchases.json с обходом кэша и умным мержем (Local-First Tombstones)
     Promise.all([
       fetch('tasks.json?t=' + Date.now()).then(r => r.json()).catch(() => null),
       fetch('purchases.json?t=' + Date.now()).then(r => r.json()).catch(() => null)
     ]).then(([cloudTasks, cloudPurchases]) => {
       let updated = false;
       if (Array.isArray(cloudTasks) && cloudTasks.length > 0) {
-        tasks = cloudTasks;
+        const localStatusMap = new Map();
+        tasks.forEach(t => { if (t && t.title) localStatusMap.set(t.title, t.done); });
+        const mergedTasks = cloudTasks.map(t => {
+          const isDone = localStatusMap.has(t.title) ? localStatusMap.get(t.title) : t.done;
+          return { ...t, done: isDone };
+        });
+        tasks.filter(t => t.id && t.id.startsWith('t_user_')).forEach(ut => {
+          if (!mergedTasks.some(mt => mt.id === ut.id)) mergedTasks.push(ut);
+        });
+        tasks = mergedTasks;
         saveTasksState();
         updated = true;
       }
       if (Array.isArray(cloudPurchases) && cloudPurchases.length > 0) {
-        purchases = cloudPurchases;
+        // Фильтруем облачные покупки: намертво отсекаем удаленные пользователем
+        const filteredCloud = cloudPurchases.filter(p => !deletedPurchaseIds.includes(p.id));
+        const localStatusMap = new Map();
+        purchases.forEach(p => { if (p && p.id) localStatusMap.set(p.id, p.done); });
+
+        const mergedPurchases = filteredCloud.map(p => {
+          const isDone = localStatusMap.has(p.id) ? localStatusMap.get(p.id) : p.done;
+          return { ...p, done: isDone };
+        });
+
+        // Сохраняем пользовательские покупки, созданные на телефоне
+        purchases.filter(p => p.id && p.id.startsWith('p_user_') && !deletedPurchaseIds.includes(p.id)).forEach(up => {
+          if (!mergedPurchases.some(mp => mp.id === up.id)) {
+            mergedPurchases.push(up);
+          }
+        });
+
+        purchases = mergedPurchases;
         savePurchasesState();
         updated = true;
       }
