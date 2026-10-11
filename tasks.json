@@ -420,5 +420,65 @@
       "Протестировать стабильность подключения и пинг"
     ],
     "desc": "Настройка серверной части на протоколе VLESS Reality: обновление Xray-core, генерация свежих ключей и маскировки, проверка соединения на Mac и iPhone."
+  },
+  {
+    "id": "t_27",
+    "cat": "home",
+    "sub": null,
+    "title": "Помыть кроссовки",
+    "done": false,
+    "deadline": "today",
+    "checklist": [],
+    "desc": "Добавлено через @vn_focus_bot"
+  },
+  {
+    "id": "t_28",
+    "cat": "home",
+    "sub": null,
+    "title": "Прикрепить обратно шторку между спальней и гостиной",
+    "done": false,
+    "deadline": "today",
+    "checklist": [],
+    "desc": "Добавлено через @vn_focus_bot"
+  },
+  {
+    "id": "t_29",
+    "cat": "home",
+    "sub": null,
+    "title": "Передвинуть стеллаж",
+    "done": false,
+    "deadline": "today",
+    "checklist": [],
+    "desc": "Добавлено через @vn_focus_bot"
+  },
+  {
+    "id": "t_30",
+    "cat": "home",
+    "sub": null,
+    "title": "Забрать карниз с Ozon",
+    "done": false,
+    "deadline": "tomorrow",
+    "checklist": [],
+    "desc": "Добавлено через @vn_focus_bot"
+  },
+  {
+    "id": "t_31",
+    "cat": "home",
+    "sub": null,
+    "title": "Встретить потолочника в 11:00",
+    "done": false,
+    "deadline": "tomorrow",
+    "checklist": [],
+    "desc": "Добавлено через @vn_focus_bot"
+  },
+  {
+    "id": "t_32",
+    "cat": "home",
+    "sub": null,
+    "title": "Пересадить цитрусовое растение в отдельный горшок",
+    "done": false,
+    "deadline": "inbox",
+    "checklist": [],
+    "desc": "Добавлено через @vn_focus_bot"
   }
 ]
